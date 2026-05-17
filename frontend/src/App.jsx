@@ -1,12 +1,22 @@
-function App() {
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import Dashboard from './pages/Dashboard'
+import ProtectedRoute from './components/ProtectedRoute'
+
+export default function App() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-800">Phishing Detector</h1>
-        <p className="text-gray-500 mt-2">Setup complet</p>
-      </div>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
-
-export default App
