@@ -23,3 +23,5 @@ backend/screenshots/
 
 # DB
 *.sqlite3
+backend/data/
+backend/results/
