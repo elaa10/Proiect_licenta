@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import api from '../services/api'
 
 export default function Dashboard() {
@@ -23,29 +23,36 @@ export default function Dashboard() {
         <h1 className="text-xl font-bold text-gray-800">Phishing Detector</h1>
         <div className="flex items-center gap-4">
           {user && <span className="text-sm text-gray-500">{user.email}</span>}
-          <button
-            onClick={logout}
-            className="text-sm text-red-500 hover:underline"
-          >
+          <button onClick={logout} className="text-sm text-red-500 hover:underline">
             Logout
           </button>
         </div>
       </nav>
-      <main className="max-w-3xl mx-auto mt-12 px-4">
-        <div className="bg-white rounded-xl shadow-md p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Check a URL</h2>
-          <p className="text-gray-500 mb-6">Enter a URL to analyze it for phishing indicators</p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="https://example.com"
-              className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium">
-              Analyze
-            </button>
+
+      <main className="max-w-2xl mx-auto mt-16 px-4">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">Welcome back</h2>
+        <p className="text-gray-500 mb-8">
+          Use the phishing detector to analyze any URL using lexical analysis, machine learning, and visual brand matching.
+        </p>
+
+        <Link
+          to="/analyze"
+          className="block bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-blue-200 transition-all group"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">
+                Analyze a URL →
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Three-stage detection: lexical · ML classifier · visual matching
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 text-xl group-hover:bg-blue-100 transition-colors">
+              🔍
+            </div>
           </div>
-        </div>
+        </Link>
       </main>
     </div>
   )
