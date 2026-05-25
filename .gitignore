@@ -25,3 +25,4 @@ backend/screenshots/
 *.sqlite3
 backend/data/
 backend/results/
+backend/models/

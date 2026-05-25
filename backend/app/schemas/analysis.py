@@ -18,6 +18,12 @@ class MLResponse(BaseModel):
     score: float
 
 
+class ScreenshotResponse(BaseModel):
+    url: str
+    screenshot: str
+    screenshot_url: str
+
+
 class FullAnalysisResponse(BaseModel):
     request_id: int
     url: str
