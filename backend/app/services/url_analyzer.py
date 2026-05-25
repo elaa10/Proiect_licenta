@@ -1,3 +1,18 @@
+"""
+URL lexical analyzer pentru detecția phishing-ului.
+Extrage 20 caracteristici lexicale din șirul URL-ului, fără cereri de rețea.
+
+Versiunea curentă rezolvă bug-ul identificat la antrenarea modelului ML:
+versiunea anterioară seta `min_brand_levenshtein = 99` pentru toate domeniile
+care erau brand exact (sld_is_exact_brand=1), ceea ce făcea ca modelul să
+asocieze valoarea 99 cu pattern-ul de phishing învățat din alte URL-uri lungi.
+
+În versiunea curentă:
+  - `sld_is_exact_brand = 1` dacă SLD-ul corespunde EXACT unui brand cunoscut
+  - `min_brand_levenshtein` = distanța minimă de la SLD la oricare ALT brand,
+    excluzând brandul cu match exact. Pentru google.com, asta dă ~6
+    (distanța la apple, paypal etc.), valoare realistă, nu sentinela 99.
+"""
 import re
 from urllib.parse import urlparse
 
@@ -18,15 +33,25 @@ SUSPICIOUS_TLDS = {
 }
 
 TOP_BRANDS = [
+    # Internaționale (~30)
     "paypal", "google", "apple", "microsoft", "amazon", "facebook",
-    "instagram", "netflix", "steam", "ebay", "bcr", "ing", "banca",
-    "raiffeisen", "emag", "revolut", "dropbox", "linkedin", "twitter",
+    "instagram", "netflix", "steam", "ebay", "dropbox", "linkedin",
+    "twitter", "youtube", "whatsapp", "tiktok", "spotify", "github",
+    "adobe", "yahoo", "outlook", "office365", "icloud", "wellsfargo",
+    "chase", "citibank", "hsbc", "barclays", "santander", "binance",
+    # Românești (~20)
+    "bcr", "bancatransilvania", "raiffeisen", "brd", "ing", "cec",
+    "unicredit", "alphabank", "first", "emag", "olx", "altex",
+    "revolut", "btpay", "anaf", "ghiseul", "cnpp", "postaromana",
+    "fancourier", "dhl",
 ]
 
+_BRANDS_SET = set(TOP_BRANDS)
 _IP_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
 
 
 def extract_features(url: str) -> dict:
+    """Extrage 20 caracteristici lexicale dintr-un URL. Nu face cereri de rețea."""
     try:
         parsed = urlparse(url if "://" in url else "http://" + url)
     except Exception:
@@ -42,14 +67,30 @@ def extract_features(url: str) -> dict:
     tld = "." + parts[-1] if parts else ""
     sld = parts[-2] if len(parts) >= 2 else domain
 
-    # Also check the first token before a hyphen — catches "paypa1-secure", "emag-premiu"
-    sld_first_token = sld.split("-")[0]
-    min_lev = min(
-        min((_levenshtein(sld, b) for b in TOP_BRANDS), default=99),
-        min((_levenshtein(sld_first_token, b) for b in TOP_BRANDS), default=99),
-    )
+    # Detectie typosquatting:
+    # - Comparam SLD-ul si primul token pre-cratima (ex: "paypa1" in "paypa1-secure.com")
+    #   cu lista de branduri cunoscute.
+    # - sld_is_exact_brand = 1 daca SLD-ul este EXACT un brand (ex: "google" in google.com)
+    # - min_brand_levenshtein = distanta minima la *celelalte* branduri
+    #   (excludem brandul cu match exact, ca sa nu se intoarca 0).
+    pre_hyphen = sld.split("-")[0] if "-" in sld else sld
+    sld_is_exact_brand = int(sld in _BRANDS_SET)
 
-    # Total slash count, excluding the "://" of the scheme
+    # Construim lista de branduri folosita pentru comparatie:
+    # - daca SLD-ul este match exact, excludem chiar acel brand
+    # - altfel, comparam cu toata lista
+    if sld_is_exact_brand:
+        brands_for_compare = [b for b in TOP_BRANDS if b != sld]
+    else:
+        brands_for_compare = TOP_BRANDS
+
+    distances = []
+    for b in brands_for_compare:
+        distances.append(_levenshtein(sld, b))
+        if pre_hyphen != sld:
+            distances.append(_levenshtein(pre_hyphen, b))
+    min_lev = min(distances) if distances else 99
+
     slash_count = url.count("/") - (2 if "://" in url else 0)
 
     return {
@@ -72,10 +113,12 @@ def extract_features(url: str) -> dict:
         "has_suspicious_tld": int(tld in SUSPICIOUS_TLDS),
         "double_slash_in_path": int("//" in path),
         "min_brand_levenshtein": min_lev,
+        "sld_is_exact_brand": sld_is_exact_brand,
     }
 
 
 def compute_lexical_score(features: dict) -> float:
+    """Scor heuristic in [0, 1]. Folosit de endpoint-ul /analyze/lexical."""
     score = 0.0
 
     if features["url_length"] > 75:
@@ -122,9 +165,16 @@ def compute_lexical_score(features: dict) -> float:
     if features["double_slash_in_path"]:
         score += 0.05
 
+    # Typosquatting: distanta mica (1-3) la un brand cunoscut.
+    # Aplicabil DOAR cand sld NU este match exact, ca sa nu penalizam google.com.
     lev = features["min_brand_levenshtein"]
-    if 1 <= lev <= 3:
+    if not features["sld_is_exact_brand"] and 1 <= lev <= 3:
         score += 0.15
+
+    # Brand exact pe TLD suspect (ex: paypal.xyz) = phishing puternic.
+    # Brand exact pe TLD normal (ex: paypal.com) = legitim, nu contribuie la scor.
+    if features["sld_is_exact_brand"] and features["has_suspicious_tld"]:
+        score += 0.20
 
     if not features["is_https"]:
         score += 0.03
@@ -153,5 +203,5 @@ def _default_features() -> dict:
         "has_at_symbol", "num_subdomains", "has_ip_address", "is_https",
         "is_url_shortener", "is_punycode", "suspicious_keyword_count",
         "digit_ratio", "has_suspicious_tld", "double_slash_in_path",
-        "min_brand_levenshtein",
+        "min_brand_levenshtein", "sld_is_exact_brand",
     ]}

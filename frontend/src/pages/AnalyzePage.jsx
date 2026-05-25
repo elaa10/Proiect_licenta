@@ -24,6 +24,7 @@ const FEATURE_LABELS = {
   has_suspicious_tld: 'Suspicious TLD',
   double_slash_in_path: 'Double slash in path',
   min_brand_levenshtein: 'Brand similarity (Levenshtein)',
+  sld_is_exact_brand: 'Known brand domain',
 }
 
 function isRisky(key, value) {
@@ -92,7 +93,7 @@ function StageHeader({ number, title, subtitle, status }) {
   )
 }
 
-function VerdictCard({ verdict }) {
+function VerdictCard({ verdict, mlAvailable }) {
   const config = {
     legitimate: {
       bg: 'bg-emerald-50 border-emerald-200',
@@ -120,15 +121,18 @@ function VerdictCard({ verdict }) {
     },
   }
   const c = config[verdict]
+  const note = mlAvailable
+    ? 'Based on lexical + ML analysis — visual module pending.'
+    : 'Based on lexical analysis only — ML and visual modules pending.'
   return (
-    <div className={`rounded-xl border-2 p-5 flex items-start gap-4 animate-fade-in ${c.bg}`}>
+    <div className={`rounded-xl border-2 p-5 flex items-start gap-4 ${c.bg}`}>
       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0 ${c.iconBg}`}>
         {c.icon}
       </div>
       <div>
         <p className={`font-bold text-lg ${c.textColor}`}>{c.title}</p>
         <p className={`text-sm mt-0.5 ${c.textColor} opacity-75`}>{c.desc}</p>
-        <p className="text-xs text-gray-500 mt-2">Based on lexical analysis only — ML and visual modules pending.</p>
+        <p className="text-xs text-gray-500 mt-2">{note}</p>
       </div>
     </div>
   )
@@ -143,6 +147,7 @@ export default function AnalyzePage() {
   const [ml, setMl] = useState({ status: 'pending', score: null, note: '' })
   const [visual, setVisual] = useState({ status: 'pending', brand: null, note: '' })
   const [verdict, setVerdict] = useState(null)
+  const [mlAvailable, setMlAvailable] = useState(false)
 
   const navigate = useNavigate()
 
@@ -153,6 +158,7 @@ export default function AnalyzePage() {
     setMl({ status: 'pending', score: null, note: '' })
     setVisual({ status: 'pending', brand: null, note: '' })
     setVerdict(null)
+    setMlAvailable(false)
   }
 
   const handleAnalyze = useCallback(async () => {
@@ -182,12 +188,30 @@ export default function AnalyzePage() {
 
     await sleep(500)
 
-    // Stage 2 — ML (placeholder)
+    // Stage 2 — ML (Random Forest)
     setMl({ status: 'running', score: null, note: 'Loading Random Forest model...' })
-    await sleep(800)
+    await sleep(400)
     setMl(prev => ({ ...prev, note: 'Running inference on 19 features...' }))
-    await sleep(800)
-    setMl({ status: 'done', score: null, note: 'Module not yet implemented — available after Day 6.' })
+    let mlData = null
+    try {
+      const res = await api.post('/analyze/ml', { url })
+      mlData = res.data
+    } catch (err) {
+      const detail = err.response?.data?.detail
+      const status = err.response?.status
+      if (status === 503) {
+        setMl({ status: 'done', score: null, note: detail || 'ML model not trained yet.' })
+      } else {
+        setError(detail || 'ML analysis failed.')
+        setPhase('error')
+        return
+      }
+    }
+    if (mlData) {
+      await sleep(300)
+      setMlAvailable(true)
+      setMl({ status: 'done', score: mlData.score, note: null })
+    }
 
     await sleep(400)
 
@@ -200,7 +224,9 @@ export default function AnalyzePage() {
     await sleep(600)
     setVisual({ status: 'done', brand: null, note: 'Module not yet implemented — available after Day 9.' })
 
-    const s = lexData.score
+    // Combined verdict: average of available signals
+    const signals = [lexData.score, mlData?.score].filter(s => typeof s === 'number')
+    const s = signals.reduce((a, b) => a + b, 0) / Math.max(signals.length, 1)
     const v = s >= 0.55 ? 'phishing' : s >= 0.3 ? 'suspicious' : 'legitimate'
     setVerdict(v)
     setPhase('done')
@@ -317,9 +343,11 @@ export default function AnalyzePage() {
               />
               {ml.status !== 'pending' && (
                 <div className="mt-3 ml-11">
-                  <p className={`text-xs font-mono ${ml.status === 'running' ? 'text-blue-500' : 'text-gray-400'}`}>
-                    {ml.note}
-                  </p>
+                  {ml.note && (
+                    <p className={`text-xs font-mono ${ml.status === 'running' ? 'text-blue-500' : 'text-gray-400'}`}>
+                      {ml.note}
+                    </p>
+                  )}
                   {ml.status === 'done' && ml.score !== null && <ScoreBar score={ml.score} />}
                 </div>
               )}
@@ -354,7 +382,7 @@ export default function AnalyzePage() {
             {/* Verdict */}
             {verdict && (
               <div className="pt-2">
-                <VerdictCard verdict={verdict} />
+                <VerdictCard verdict={verdict} mlAvailable={mlAvailable} />
               </div>
             )}
 

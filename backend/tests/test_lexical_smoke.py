@@ -1,5 +1,5 @@
 """
-Extended smoke test for the lexical URL detector.
+Smoke tests for the lexical URL detector.
 
 Run from inside the backend container:
     docker exec -it proiect_licenta-backend-1 python -m tests.test_lexical_smoke
@@ -14,16 +14,16 @@ from app.services.url_analyzer import extract_features, compute_lexical_score
 # "high" → score ≥ 0.40
 
 SCORING_TESTS = [
-    # Legitimate URLs
+    # Legitimate URLs — must score below the safe threshold
     ("https://www.google.com",               "safe", "Google homepage"),
     ("https://github.com/torvalds/linux",    "safe", "GitHub repo"),
     ("https://www.bcr.ro",                   "safe", "Romanian bank"),
     ("https://www.emag.ro/produs/iphone-15", "safe", "Romanian e-commerce"),
     ("https://www.facebook.com/help",        "safe", "Facebook help page"),
-    # paypal.com with deep path — SLD matches brand exactly (lev=0), score stays low
+    # Deep legitimate path — SLD matches brand exactly (lev=0), score stays low
     ("http://paypal.com/a/b/c/d/e/f/g/h",   "safe", "Legitimate domain with deep path"),
 
-    # Strong phishing signals
+    # Strong phishing signals — must reach the high threshold
     ("http://192.168.1.1/login/account",     "high", "IP address in host"),
     ("http://google.com@evil.ru/secure",     "high", "AT symbol masking"),
     ("https://xn--80ak6aa92e.com/login",     "high", "Punycode / IDN homograph"),
@@ -31,15 +31,18 @@ SCORING_TESTS = [
     ("http://secure-login-paypal-verify-account-update.com/banking/credentials/step2/confirm/action.php",
                                              "high", "Long URL with many keywords"),
 
-    # Medium signals
+    # Medium signals — must fall in the 0.20–0.65 range.
+    # pre-hyphen token "paypa1" has Levenshtein distance 1 from "paypal"
     ("http://paypa1-secure.com/verify",      "mid",  "Typosquatting with suffix"),
     ("http://gooogle.com/login",             "mid",  "One-char typosquatting"),
     ("http://login-bcr-secure.cyou/update",  "mid",  "Suspicious TLD + keywords"),
+    # URL shortener; short SLD "bit" coincidentally has lev-distance 2 from "bcr"
     ("https://bit.ly/3xampLe",              "mid",  "URL shortener"),
     ("http://ing-romania.secure-banking-login.verify.top/account/update?id=1234",
-                                             "mid",  "Subdomains + keywords + TLD"),
-    # Underscores + TLD + 2 keywords → ~0.28 (mid, not high — "bank" ≠ "banking")
-    ("http://ing_ro_secure_login_bank.top/", "mid",  "Underscores + TLD + keywords"),
+                                             "mid",  "Subdomains + keywords + suspicious TLD"),
+    ("http://ing_ro_secure_login_bank.top/", "mid",  "Underscores + suspicious TLD + keywords"),
+    # "evil" has lev-distance 3 from "emag"; combined with no-HTTPS and multiple
+    # question marks the heuristic reaches the mid range
     ("http://evil.com/x?a=1&b=2?c=3?d=4",  "mid",  "Multiple question marks"),
 ]
 
@@ -67,20 +70,20 @@ FEATURE_TESTS = [
     ("https://tinyurl.com/xyz", "is_url_shortener", 1, "tinyurl shortener"),
     ("https://www.google.com",  "is_url_shortener", 0, "Not a shortener"),
 
-    # is_punycode  ← new feature
+    # is_punycode
     ("https://xn--80ak6aa92e.com/login", "is_punycode", 1, "Punycode domain detected"),
     ("https://xn--pple-43d.com",         "is_punycode", 1, "Another Punycode domain"),
     ("https://www.apple.com",            "is_punycode", 0, "Normal ASCII domain"),
 
-    # num_slashes  ← new feature
+    # num_slashes
     ("http://evil.com/a/b/c/d/e", "num_slashes", 5, "5 slashes in path"),
     ("https://google.com",         "num_slashes", 0, "No path slashes"),
 
-    # num_underscores  ← new feature
+    # num_underscores
     ("http://secure_login_bank.com/account_update", "num_underscores", 3, "3 underscores"),
     ("https://www.google.com",                       "num_underscores", 0, "No underscores"),
 
-    # num_question_marks  ← new feature
+    # num_question_marks
     ("http://evil.com/x?a=1?b=2?c=3", "num_question_marks", 3, "3 question marks"),
     ("https://google.com/search?q=hi", "num_question_marks", 1, "1 question mark"),
     ("https://www.google.com",         "num_question_marks", 0, "No question marks"),
@@ -91,23 +94,32 @@ FEATURE_TESTS = [
     ("http://login.com",  "has_suspicious_tld", 0, ".com is not suspicious"),
     ("https://login.ro",  "has_suspicious_tld", 0, ".ro is not suspicious"),
 
-    # suspicious_keyword_count ("bank" is NOT in list, only "banking")
+    # suspicious_keyword_count ("bank" is NOT in the list; only "banking" is)
     ("http://secure-login-verify.com",  "suspicious_keyword_count", 3, "secure + login + verify"),
-    ("http://ing-secure-login-bank.com","suspicious_keyword_count", 2, "secure + login (bank ≠ banking)"),
+    ("http://ing-secure-login-bank.com","suspicious_keyword_count", 2, "secure + login (bank != banking)"),
     ("https://www.google.com",          "suspicious_keyword_count", 0, "No keywords"),
 
     # double_slash_in_path
     ("http://evil.com//redirect/login", "double_slash_in_path", 1, "Double slash in path"),
     ("https://www.google.com/search",   "double_slash_in_path", 0, "No double slash"),
 
-    # num_subdomains (a.b.c.evil.com → subdomains are a, b, c → 3)
+    # num_subdomains (a.b.c.evil.com → 3 subdomains: a, b, c)
     ("http://a.b.c.evil.com/", "num_subdomains", 3, "3 subdomains: a, b, c"),
     ("https://www.google.com",  "num_subdomains", 0, "www stripped → 0 subdomains"),
 
-    # min_brand_levenshtein
+    # min_brand_levenshtein — whole SLD
     ("http://paypa1.com",  "min_brand_levenshtein", 1, "paypa1 → paypal, distance 1"),
     ("http://gooogle.com", "min_brand_levenshtein", 1, "gooogle → google, distance 1"),
     ("http://paypal.com",  "min_brand_levenshtein", 0, "paypal → paypal, distance 0"),
+
+    # min_brand_levenshtein — pre-hyphen token (key fix: compound phishing domains)
+    ("http://paypa1-secure.com", "min_brand_levenshtein", 1, "pre-hyphen paypa1 → paypal = 1"),
+
+    # sld_is_exact_brand
+    ("https://paypal.com",        "sld_is_exact_brand", 1, "paypal is in TOP_BRANDS"),
+    ("https://google.com",        "sld_is_exact_brand", 1, "google is in TOP_BRANDS"),
+    ("https://paypal-secure.com", "sld_is_exact_brand", 0, "paypal-secure is not an exact match"),
+    ("https://random-site.com",   "sld_is_exact_brand", 0, "unknown SLD → 0"),
 ]
 
 
@@ -126,7 +138,7 @@ def run_scoring_tests():
         if category == "safe":
             ok = score < 0.20
         elif category == "mid":
-            ok = 0.15 <= score < 0.65
+            ok = 0.20 <= score < 0.65
         else:
             ok = score >= 0.40
 
