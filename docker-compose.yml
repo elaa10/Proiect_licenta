@@ -26,6 +26,7 @@ services:
     volumes:
       - ./backend:/app
       - ./backend/screenshots:/app/screenshots
+      - clip_model_cache:/root/.cache
     depends_on:
       db:
         condition: service_healthy
@@ -33,3 +34,4 @@ services:
 
 volumes:
   postgres_data:
+  clip_model_cache:
