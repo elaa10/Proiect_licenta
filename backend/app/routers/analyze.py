@@ -3,10 +3,11 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
+from app.models.analysis import AnalysisRequest, AnalysisResult
 from app.routers.auth import get_current_user
 from app.schemas.analysis import (
     AnalyzeRequest, LexicalResponse, MLResponse,
-    ScreenshotResponse, VisualResponse,
+    ScreenshotResponse, VisualResponse, FullAnalysisResponse, AnalysisHistoryItem,
 )
 from app.services.url_analyzer import extract_features, compute_lexical_score
 from app.services.ml_classifier import is_model_available, predict_ml_score
@@ -21,6 +22,32 @@ def _validate_url(url: str) -> None:
         raise HTTPException(status_code=422, detail="Invalid URL.")
     if not (url.startswith("http://") or url.startswith("https://")):
         raise HTTPException(status_code=422, detail="URL must start with http:// or https://")
+
+
+def _compute_verdict(lexical: float, ml: float | None, visual_matched: bool, visual_sim: float | None) -> str:
+    scores = [lexical]
+    if ml is not None:
+        scores.append(ml)
+
+    avg = sum(scores) / len(scores)
+
+    if visual_matched and visual_sim:
+        if visual_sim >= 0.95 and avg < 0.65:
+            # High-confidence visual brand match reduces suspicion.
+            # Compensates false positives from URL modules on legitimate
+            # pages containing auth keywords (signin, login, secure).
+            legitimacy_bonus = (visual_sim - 0.90) * 2.0
+            avg = avg * (1.0 - legitimacy_bonus)
+        elif avg < 0.4:
+            # Low URL risk + visual match → slight penalty if similarity
+            # is moderate (possible cloned page not caught by URL analysis)
+            avg = max(avg, 0.30)
+
+    if avg >= 0.55:
+        return "phishing"
+    if avg >= 0.30:
+        return "suspicious"
+    return "legitimate"
 
 
 @router.post("/lexical", response_model=LexicalResponse)
@@ -72,17 +99,12 @@ async def analyze_visual(
     current_user: User = Depends(get_current_user),
 ):
     _validate_url(payload.url)
-
     if not is_visual_available():
         raise HTTPException(status_code=503, detail="Brand knowledge base not found. Run scripts/init_brand_db.py first.")
-
     filename = await capture_screenshot(payload.url)
     if filename is None:
         raise HTTPException(status_code=422, detail="Could not capture screenshot.")
-
-    screenshot_path = f"/app/screenshots/{filename}"
-    result = match_brand(screenshot_path)
-
+    result = match_brand(f"/app/screenshots/{filename}")
     return VisualResponse(
         url=payload.url,
         screenshot=filename,
@@ -93,3 +115,102 @@ async def analyze_visual(
         similarity=result["similarity"],
         label=result["label"],
     )
+
+
+@router.post("/", response_model=FullAnalysisResponse)
+async def analyze_full(
+    payload: AnalyzeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Full pipeline: lexical + ML + visual. Stores result in DB."""
+    _validate_url(payload.url)
+
+    # Create request record
+    req = AnalysisRequest(user_id=current_user.id, url=payload.url, status="running")
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+
+    lexical_score = None
+    ml_score = None
+    screenshot_path = None
+    visual_brand = None
+    visual_similarity = None
+
+    try:
+        # Stage 1 — Lexical
+        features = extract_features(payload.url)
+        lexical_score = compute_lexical_score(features)
+
+        # Stage 2 — ML
+        if is_model_available():
+            ml_score = predict_ml_score(payload.url)["score"]
+
+        # Stage 3 — Visual
+        filename = await capture_screenshot(payload.url)
+        if filename:
+            screenshot_path = f"/app/screenshots/{filename}"
+            if is_visual_available():
+                match = match_brand(screenshot_path)
+                if match["matched"]:
+                    visual_brand = match["brand"]
+                    visual_similarity = match["similarity"]
+
+        verdict = _compute_verdict(lexical_score, ml_score, bool(visual_brand), visual_similarity)
+
+        # Store result
+        result = AnalysisResult(
+            request_id=req.id,
+            lexical_score=lexical_score,
+            ml_score=ml_score,
+            screenshot_path=screenshot_path,
+            visual_match_brand=visual_brand,
+            visual_similarity=visual_similarity,
+            verdict=verdict,
+        )
+        db.add(result)
+        req.status = "done"
+        db.commit()
+        db.refresh(result)
+
+        return FullAnalysisResponse(
+            request_id=req.id,
+            url=req.url,
+            lexical_score=lexical_score,
+            ml_score=ml_score,
+            visual_match_brand=visual_brand,
+            visual_similarity=visual_similarity,
+            screenshot_path=screenshot_path,
+            verdict=verdict,
+            created_at=req.created_at,
+        )
+
+    except Exception as e:
+        req.status = "error"
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+    
+
+@router.get("/history", response_model=list[AnalysisHistoryItem])
+def get_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    limit: int = 50,
+):
+    requests = (
+        db.query(AnalysisRequest)
+        .filter(AnalysisRequest.user_id == current_user.id)
+        .order_by(AnalysisRequest.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        AnalysisHistoryItem(
+            request_id=r.id,
+            url=r.url,
+            verdict=r.result.verdict if r.result else None,
+            created_at=r.created_at,
+        )
+        for r in requests
+    ]

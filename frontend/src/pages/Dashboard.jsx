@@ -53,6 +53,24 @@ export default function Dashboard() {
             </div>
           </div>
         </Link>
+        <Link
+          to="/history"
+          className="block bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-purple-200 transition-all group mt-4"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 group-hover:text-purple-600 transition-colors">
+                Analysis History →
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                View all previously analyzed URLs and their verdicts
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 text-xl group-hover:bg-purple-100 transition-colors">
+              📋
+            </div>
+          </div>
+        </Link>
       </main>
     </div>
   )
