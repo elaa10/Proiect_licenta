@@ -4,10 +4,14 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.routers.auth import get_current_user
-from app.schemas.analysis import AnalyzeRequest, LexicalResponse, MLResponse, ScreenshotResponse
+from app.schemas.analysis import (
+    AnalyzeRequest, LexicalResponse, MLResponse,
+    ScreenshotResponse, VisualResponse,
+)
 from app.services.url_analyzer import extract_features, compute_lexical_score
 from app.services.ml_classifier import is_model_available, predict_ml_score
 from app.services.browser_capture import capture_screenshot
+from app.services.visual_matcher import is_visual_available, match_brand
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
 
@@ -53,9 +57,39 @@ async def analyze_screenshot(
     _validate_url(payload.url)
     filename = await capture_screenshot(payload.url)
     if filename is None:
-        raise HTTPException(status_code=422, detail="Could not capture screenshot. URL may be unreachable or timed out.")
+        raise HTTPException(status_code=422, detail="Could not capture screenshot.")
     return ScreenshotResponse(
         url=payload.url,
         screenshot=filename,
         screenshot_url=f"/screenshots/{filename}",
+    )
+
+
+@router.post("/visual", response_model=VisualResponse)
+async def analyze_visual(
+    payload: AnalyzeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _validate_url(payload.url)
+
+    if not is_visual_available():
+        raise HTTPException(status_code=503, detail="Brand knowledge base not found. Run scripts/init_brand_db.py first.")
+
+    filename = await capture_screenshot(payload.url)
+    if filename is None:
+        raise HTTPException(status_code=422, detail="Could not capture screenshot.")
+
+    screenshot_path = f"/app/screenshots/{filename}"
+    result = match_brand(screenshot_path)
+
+    return VisualResponse(
+        url=payload.url,
+        screenshot=filename,
+        screenshot_url=f"/screenshots/{filename}",
+        matched=result["matched"],
+        brand=result["brand"],
+        display=result["display"],
+        similarity=result["similarity"],
+        label=result["label"],
     )

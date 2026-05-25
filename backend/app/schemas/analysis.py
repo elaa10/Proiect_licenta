@@ -24,6 +24,17 @@ class ScreenshotResponse(BaseModel):
     screenshot_url: str
 
 
+class VisualResponse(BaseModel):
+    url: str
+    screenshot: str
+    screenshot_url: str
+    matched: bool
+    brand: Optional[str]
+    display: Optional[str]
+    similarity: float
+    label: Optional[str]
+
+
 class FullAnalysisResponse(BaseModel):
     request_id: int
     url: str
