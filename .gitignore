@@ -7,22 +7,37 @@ venv/
 
 # Node
 node_modules/
-dist/
-.next/
+frontend/dist/
 
 # Environment
 .env
 *.env
 
-# Screenshots
-backend/screenshots/
+# OS
+.DS_Store
+Thumbs.db
 
-# Models
+# Logs
+*.log
+
+# Large binary files (safety net)
 *.pkl
 *.joblib
 
-# DB
-*.sqlite3
-backend/data/
-backend/results/
-backend/models/
+# Screenshots — contents ignored, folder kept via .gitkeep
+backend/screenshots/*
+!backend/screenshots/.gitkeep
+
+# Data — large CSV files and embeddings
+backend/data/*
+!backend/data/.gitkeep
+
+# Results — evaluation outputs
+backend/results/*
+!backend/results/.gitkeep
+
+# Models — large binary files
+backend/models/*
+!backend/models/.gitkeep
+
+backend/evaluation/

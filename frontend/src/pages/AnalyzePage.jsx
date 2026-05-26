@@ -88,7 +88,7 @@ function StageHeader({ number, title, subtitle, status }) {
   )
 }
 
-function VerdictCard({ verdict, signals, visualBrand }) {
+function VerdictCard({ verdict, lexicalScore, mlScore, visualBrand }) {
   const config = {
     legitimate: {
       bg: 'bg-emerald-50 border-emerald-200', icon: '✓', iconBg: 'bg-emerald-100 text-emerald-600',
@@ -103,18 +103,41 @@ function VerdictCard({ verdict, signals, visualBrand }) {
       title: 'Likely phishing', desc: 'Multiple strong phishing indicators detected. Do not interact with this URL.', textColor: 'text-red-800',
     },
   }
-  const c = config[verdict]
+  const c = config[verdict] || config.suspicious
+  const signals = ['lexical', mlScore !== null ? 'ML' : null, visualBrand !== null ? 'visual' : null].filter(Boolean)
+
   return (
     <div className={`rounded-xl border-2 p-5 flex items-start gap-4 ${c.bg}`}>
       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0 ${c.iconBg}`}>{c.icon}</div>
-      <div>
+      <div className="flex-1">
         <p className={`font-bold text-lg ${c.textColor}`}>{c.title}</p>
         <p className={`text-sm mt-0.5 ${c.textColor} opacity-75`}>{c.desc}</p>
+
+        {/* Confirmare brand legitim */}
         {visualBrand && verdict === 'legitimate' && (
           <p className="text-xs text-emerald-700 mt-1.5 font-medium">
             ✓ Visual module confirmed this is the official <span className="font-bold">{visualBrand}</span> page — ML suspicion score overridden.
           </p>
         )}
+
+        {/* Warning brand imitat */}
+        {visualBrand && (verdict === 'suspicious' || verdict === 'phishing') && (
+          <div className="mt-2 bg-white bg-opacity-60 rounded-lg px-3 py-2 border border-current border-opacity-20">
+            <p className={`text-xs font-semibold ${c.textColor}`}>
+              ⚠ Această pagină imită vizual <span className="font-bold">{visualBrand}</span>.
+            </p>
+            <p className={`text-xs mt-0.5 ${c.textColor} opacity-80`}>
+              Verificați că URL-ul din bara de adrese este cel oficial al {visualBrand} înainte de a introduce date personale.
+            </p>
+          </div>
+        )}
+
+        {!visualBrand && (verdict === 'suspicious' || verdict === 'phishing') && (
+          <p className={`text-xs mt-1.5 ${c.textColor} opacity-75`}>
+            Niciun brand cunoscut nu a fost identificat vizual. Procedați cu precauție.
+          </p>
+        )}
+
         <p className="text-xs text-gray-500 mt-2">Based on {signals.join(' + ')} analysis.</p>
       </div>
     </div>
@@ -125,19 +148,18 @@ export default function AnalyzePage() {
   const [url, setUrl] = useState('')
   const [phase, setPhase] = useState('idle')
   const [error, setError] = useState('')
-  const [lexical, setLexical] = useState({ status: 'pending', score: null, visible: [] })
-  const [ml, setMl] = useState({ status: 'pending', score: null, note: '' })
-  const [visual, setVisual] = useState({ status: 'pending', data: null, note: '' })
-  const [verdict, setVerdict] = useState(null)
-  const [verdictSignals, setVerdictSignals] = useState([])
+  const [stage1, setStage1] = useState({ status: 'pending', features: [] })
+  const [stage2, setStage2] = useState({ status: 'pending', note: '' })
+  const [stage3, setStage3] = useState({ status: 'pending', note: '' })
+  const [result, setResult] = useState(null)
   const navigate = useNavigate()
 
   const reset = () => {
     setPhase('idle'); setError('')
-    setLexical({ status: 'pending', score: null, visible: [] })
-    setMl({ status: 'pending', score: null, note: '' })
-    setVisual({ status: 'pending', data: null, note: '' })
-    setVerdict(null); setVerdictSignals([])
+    setStage1({ status: 'pending', features: [] })
+    setStage2({ status: 'pending', note: '' })
+    setStage3({ status: 'pending', note: '' })
+    setResult(null)
   }
 
   const handleAnalyze = useCallback(async () => {
@@ -145,89 +167,68 @@ export default function AnalyzePage() {
     reset()
     setPhase('running')
 
-    // Stage 1 — Lexical
-    setLexical({ status: 'running', score: null, visible: [] })
-    let lexData
+    // Stage 1 animation — fetch lexical while animating
+    setStage1({ status: 'running', features: [] })
+    let lexData = null
     try {
       const res = await api.post('/analyze/lexical', { url })
       lexData = res.data
+    } catch {
+      // non-fatal, pipeline will still run
+    }
+
+    if (lexData) {
+      const entries = Object.entries(lexData.features)
+      for (let i = 0; i < entries.length; i++) {
+        await sleep(80)
+        setStage1(prev => ({ ...prev, features: entries.slice(0, i + 1) }))
+      }
+      setStage1({ status: 'done', score: lexData.score, features: entries })
+    } else {
+      setStage1({ status: 'done', score: null, features: [] })
+    }
+
+    await sleep(300)
+
+    // Stage 2 animation — show while pipeline runs
+    setStage2({ status: 'running', note: 'Running Random Forest inference...' })
+
+    // Stage 3 animation starts while still waiting for pipeline
+    await sleep(800)
+    setStage3({ status: 'running', note: 'Capturing screenshot...' })
+    await sleep(1000)
+    setStage3(prev => ({ ...prev, note: 'Computing CLIP embedding...' }))
+
+    // Call full pipeline — saves to DB and returns unified verdict
+    let data = null
+    try {
+      const res = await api.post('/analyze/', { url })
+      data = res.data
     } catch (err) {
       setError(err.response?.data?.detail || 'Analysis failed.')
       setPhase('error')
       return
     }
-    const entries = Object.entries(lexData.features)
-    for (let i = 0; i < entries.length; i++) {
-      await sleep(90)
-      setLexical(prev => ({ ...prev, visible: entries.slice(0, i + 1) }))
-    }
-    await sleep(200)
-    setLexical({ status: 'done', score: lexData.score, visible: entries })
-    await sleep(500)
 
-    // Stage 2 — ML
-    setMl({ status: 'running', score: null, note: 'Loading Random Forest model...' })
-    await sleep(400)
-    setMl(prev => ({ ...prev, note: 'Running inference on 20 features...' }))
-    let mlData = null
-    try {
-      const res = await api.post('/analyze/ml', { url })
-      mlData = res.data
-    } catch (err) {
-      const status = err.response?.status
-      const detail = err.response?.data?.detail
-      if (status === 503) {
-        setMl({ status: 'done', score: null, note: detail || 'ML model not trained yet.' })
-      } else {
-        setError(detail || 'ML analysis failed.')
-        setPhase('error')
-        return
-      }
-    }
-    if (mlData) {
-      await sleep(300)
-      setMl({ status: 'done', score: mlData.score, note: null })
-    }
-    await sleep(400)
+    // Update stages with real results
+    setStage2({
+      status: 'done',
+      score: data.ml_score,
+      note: data.ml_score === null ? 'ML model not available.' : null,
+    })
 
-    // Stage 3 — Visual
-    setVisual({ status: 'running', data: null, note: 'Launching headless browser...' })
-    await sleep(300)
-    setVisual(prev => ({ ...prev, note: 'Capturing screenshot...' }))
-    let visualData = null
-    try {
-      const res = await api.post('/analyze/visual', { url })
-      visualData = res.data
-    } catch (err) {
-      const status = err.response?.status
-      const detail = err.response?.data?.detail
-      if (status === 503) {
-        setVisual({ status: 'done', data: null, note: detail || 'Visual module not available.' })
-      } else {
-        setVisual({ status: 'done', data: null, note: 'Screenshot capture failed.' })
-      }
-    }
-    if (visualData) {
-      setVisual({ status: 'done', data: visualData, note: null })
-    }
+    setStage3({
+      status: 'done',
+      note: data.screenshot_path ? null : 'Screenshot capture failed.',
+      screenshotUrl: data.screenshot_path
+        ? `http://localhost:8000/screenshots/${data.screenshot_path.split('/').pop()}`
+        : null,
+      matched: !!data.visual_match_brand,
+      display: data.visual_match_brand,
+      similarity: data.visual_similarity,
+    })
 
-    // Verdict
-    const scores = [lexData.score, mlData?.score].filter(s => typeof s === 'number')
-    let avg = scores.reduce((a, b) => a + b, 0) / Math.max(scores.length, 1)
-    const signals = ['lexical']
-    if (mlData) signals.push('ML')
-    if (visualData) {
-      signals.push('visual')
-      if (visualData.matched && visualData.similarity >= 0.95 && avg < 0.65) {
-        const legitimacyBonus = (visualData.similarity - 0.90) * 2.0
-        avg = avg * (1.0 - legitimacyBonus)
-      } else if (!visualData.matched && avg < 0.4) {
-        avg = Math.max(avg, 0.30)
-      }
-    }
-    const v = avg >= 0.55 ? 'phishing' : avg >= 0.30 ? 'suspicious' : 'legitimate'
-    setVerdictSignals(signals)
-    setVerdict(v)
+    setResult(data)
     setPhase('done')
   }, [url])
 
@@ -273,15 +274,15 @@ export default function AnalyzePage() {
 
             {/* Stage 1 */}
             <div className={`bg-white rounded-xl border transition-all duration-300 ${
-              lexical.status === 'pending' ? 'border-gray-100 opacity-50' :
-              lexical.status === 'running' ? 'border-blue-200 shadow-sm' : 'border-gray-200 shadow-sm'
+              stage1.status === 'pending' ? 'border-gray-100 opacity-50' :
+              stage1.status === 'running' ? 'border-blue-200 shadow-sm' : 'border-gray-200 shadow-sm'
             } p-5`}>
               <StageHeader number="1" title="Lexical URL Analysis"
-                subtitle="Pattern matching on URL string — no network requests" status={lexical.status} />
-              {lexical.status !== 'pending' && (
+                subtitle="Pattern matching on URL string — no network requests" status={stage1.status} />
+              {stage1.status !== 'pending' && (
                 <div className="mt-4 ml-11">
                   <div className="flex flex-wrap gap-1.5">
-                    {lexical.visible.map(([key, value]) => {
+                    {stage1.features.map(([key, value]) => {
                       const risky = isRisky(key, value)
                       return (
                         <span key={key} className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-mono transition-all ${
@@ -293,62 +294,57 @@ export default function AnalyzePage() {
                         </span>
                       )
                     })}
-                    {lexical.status === 'running' && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-md text-xs text-gray-400 bg-gray-50 border border-gray-100 animate-pulse">
-                        scanning...
-                      </span>
+                    {stage1.status === 'running' && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-md text-xs text-gray-400 bg-gray-50 border border-gray-100 animate-pulse">scanning...</span>
                     )}
                   </div>
-                  {lexical.status === 'done' && lexical.score !== null && <ScoreBar score={lexical.score} />}
+                  {stage1.status === 'done' && stage1.score !== null && <ScoreBar score={stage1.score} />}
                 </div>
               )}
             </div>
 
             {/* Stage 2 */}
             <div className={`bg-white rounded-xl border transition-all duration-300 ${
-              ml.status === 'pending' ? 'border-gray-100 opacity-40' :
-              ml.status === 'running' ? 'border-blue-200 shadow-sm' : 'border-gray-200 shadow-sm'
+              stage2.status === 'pending' ? 'border-gray-100 opacity-40' :
+              stage2.status === 'running' ? 'border-blue-200 shadow-sm' : 'border-gray-200 shadow-sm'
             } p-5`}>
               <StageHeader number="2" title="ML Classifier — Random Forest"
-                subtitle="Trained on phishing URL corpus (Sahingoz et al., 2019 approach)" status={ml.status} />
-              {ml.status !== 'pending' && (
+                subtitle="Trained on phishing URL corpus (Sahingoz et al., 2019 approach)" status={stage2.status} />
+              {stage2.status !== 'pending' && (
                 <div className="mt-3 ml-11">
-                  {ml.note && <p className={`text-xs font-mono ${ml.status === 'running' ? 'text-blue-500' : 'text-gray-400'}`}>{ml.note}</p>}
-                  {ml.status === 'done' && ml.score !== null && <ScoreBar score={ml.score} />}
+                  {stage2.note && <p className={`text-xs font-mono ${stage2.status === 'running' ? 'text-blue-500' : 'text-gray-400'}`}>{stage2.note}</p>}
+                  {stage2.status === 'done' && stage2.score !== null && <ScoreBar score={stage2.score} />}
                 </div>
               )}
             </div>
 
             {/* Stage 3 */}
             <div className={`bg-white rounded-xl border transition-all duration-300 ${
-              visual.status === 'pending' ? 'border-gray-100 opacity-40' :
-              visual.status === 'running' ? 'border-blue-200 shadow-sm' : 'border-gray-200 shadow-sm'
+              stage3.status === 'pending' ? 'border-gray-100 opacity-40' :
+              stage3.status === 'running' ? 'border-blue-200 shadow-sm' : 'border-gray-200 shadow-sm'
             } p-5`}>
               <StageHeader number="3" title="Visual Brand Matching"
-                subtitle="CLIP ViT-B/32 embeddings — cosine similarity against 48-brand knowledge base" status={visual.status} />
-              {visual.status !== 'pending' && (
+                subtitle="CLIP ViT-B/32 embeddings — cosine similarity against 48-brand knowledge base" status={stage3.status} />
+              {stage3.status !== 'pending' && (
                 <div className="mt-3 ml-11">
-                  {visual.note && (
-                    <p className={`text-xs font-mono ${visual.status === 'running' ? 'text-blue-500' : 'text-gray-400'}`}>{visual.note}</p>
+                  {stage3.note && (
+                    <p className={`text-xs font-mono ${stage3.status === 'running' ? 'text-blue-500' : 'text-gray-400'}`}>{stage3.note}</p>
                   )}
-                  {visual.status === 'done' && visual.data && (
+                  {stage3.status === 'done' && stage3.screenshotUrl && (
                     <div className="mt-2 space-y-2">
-                      {visual.data.screenshot_url && (
-                        <img
-                          src={`http://localhost:8000${visual.data.screenshot_url}`}
-                          alt="Screenshot"
-                          className="rounded-lg border border-gray-200 w-full max-h-40 object-cover object-top"
-                        />
-                      )}
-                      {visual.data.matched ? (
+                      <img src={stage3.screenshotUrl} alt="Screenshot"
+                        className="rounded-lg border border-gray-200 w-full max-h-40 object-cover object-top" />
+                      {stage3.matched ? (
                         <p className="text-sm text-gray-700">
-                          Brand detected: <span className="font-semibold text-gray-900">{visual.data.display}</span>
-                          <span className="ml-2 text-xs text-gray-400 font-mono">similarity {(visual.data.similarity * 100).toFixed(1)}%</span>
+                          Brand detected: <span className="font-semibold text-gray-900">{stage3.display}</span>
+                          <span className="ml-2 text-xs text-gray-400 font-mono">similarity {((stage3.similarity || 0) * 100).toFixed(1)}%</span>
                         </p>
                       ) : (
                         <p className="text-sm text-gray-400">
                           No brand match found
-                          <span className="ml-2 text-xs font-mono">best similarity {(visual.data.similarity * 100).toFixed(1)}%</span>
+                          {stage3.similarity !== null && (
+                            <span className="ml-2 text-xs font-mono">best similarity {((stage3.similarity || 0) * 100).toFixed(1)}%</span>
+                          )}
                         </p>
                       )}
                     </div>
@@ -357,12 +353,14 @@ export default function AnalyzePage() {
               )}
             </div>
 
-            {verdict && (
+            {/* Verdict */}
+            {result && phase === 'done' && (
               <div className="pt-2">
                 <VerdictCard
-                  verdict={verdict}
-                  signals={verdictSignals}
-                  visualBrand={visual.data?.matched ? visual.data?.display : null}
+                  verdict={result.verdict}
+                  lexicalScore={result.lexical_score}
+                  mlScore={result.ml_score}
+                  visualBrand={result.visual_match_brand}
                 />
               </div>
             )}

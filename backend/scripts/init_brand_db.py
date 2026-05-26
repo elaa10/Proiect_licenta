@@ -1,6 +1,7 @@
 import asyncio
 import pickle
 from pathlib import Path
+from urllib.parse import urlparse
 
 import numpy as np
 import open_clip
@@ -11,11 +12,12 @@ from playwright.async_api import async_playwright, TimeoutError as PwTimeout
 BRANDS_DIR = Path("/app/screenshots/brands")
 EMBEDDINGS_PATH = Path("/app/data/brand_embeddings.pkl")
 
-# Crop height (px) used for embedding computation.
-# Only the top portion of the screenshot is used — logo/header area is the most
-# brand-distinctive region. Using the full page risks false positives because
-# login forms look similar across sites.
-CROP_HEIGHT = 300
+CROP_STRATEGIES = [
+    {"name": "top_150",  "top": 0,   "bottom": 150},
+    {"name": "top_300",  "top": 0,   "bottom": 300},
+    {"name": "top_500",  "top": 0,   "bottom": 500},
+    {"name": "mid_300",  "top": 100, "bottom": 400},
+]
 
 BRANDS = [
     # ── Global — Tech ────────────────────────────────────────────────────────
@@ -126,10 +128,10 @@ BRANDS = [
         {"label": "login", "url": "https://login-business.bcr.ro/corporate-george-auth/login"},
     ]},
     {"name": "bancatransilvania", "display": "Banca Transilvania", "category": "banking-ro", "references": [
-        {"label": "home",       "url": "https://www.bancatransilvania.ro/"},
-        {"label": "george",     "url": "https://goapp.bancatransilvania.ro/app/auth/login"},
-        {"label": "btpay",      "url": "https://btpay.bancatransilvania.ro/"},
-        {"label": "btultra",    "url": "https://btultra.btrl.ro/btultraweb/_mcologon"},
+        {"label": "home",    "url": "https://www.bancatransilvania.ro/"},
+        {"label": "george",  "url": "https://goapp.bancatransilvania.ro/app/auth/login"},
+        {"label": "btpay",   "url": "https://btpay.bancatransilvania.ro/"},
+        {"label": "btultra", "url": "https://btultra.btrl.ro/btultraweb/_mcologon"},
     ]},
     {"name": "ing", "display": "ING România", "category": "banking-ro", "references": [
         {"label": "home", "url": "https://www.ing.ro/"},
@@ -166,6 +168,17 @@ BRANDS = [
     {"name": "kaufland", "display": "Kaufland", "category": "retail-ro", "references": [
         {"label": "home", "url": "https://www.kaufland.ro/"},
     ]},
+    {"name": "zalando", "display": "Zalando", "category": "ecommerce-ro", "references": [
+        {"label": "home", "url": "https://www.zalando.ro/"},
+    ]},
+    {"name": "fashiondays", "display": "Fashion Days", "category": "ecommerce-ro", "references": [
+        {"label": "home",  "url": "https://www.fashiondays.ro/"},
+        {"label": "login", "url": "https://www.fashiondays.ro/customer/authentication"},
+    ]},
+    {"name": "aboutyou", "display": "About You", "category": "ecommerce-ro", "references": [
+        {"label": "home",  "url": "https://www.aboutyou.ro/"},
+        {"label": "login", "url": "https://www.aboutyou.ro/a/profile?loginFlow=register"},
+    ]},
     # ── Romanian — Logistics ─────────────────────────────────────────────────
     {"name": "postaromana", "display": "Poșta Română", "category": "logistics-ro", "references": [
         {"label": "home",  "url": "https://www.posta-romana.ro/"},
@@ -196,7 +209,7 @@ BRANDS = [
         {"label": "login", "url": "https://www.cnpp.ro/autentificare"},
     ]},
     # ── Romanian — Delivery ──────────────────────────────────────────────────
-    {"name": "tazz",  "display": "Tazz",  "category": "delivery-ro", "references": [
+    {"name": "tazz", "display": "Tazz", "category": "delivery-ro", "references": [
         {"label": "home", "url": "https://tazz.ro/"},
     ]},
     {"name": "glovo", "display": "Glovo", "category": "delivery-ro", "references": [
@@ -206,19 +219,32 @@ BRANDS = [
     {"name": "bolt", "display": "Bolt", "category": "delivery-ro", "references": [
         {"label": "home", "url": "https://bolt.eu/ro/"},
     ]},
+]
 
-    # ── Romanian — brands ──────────────────────────────────────────────────
-    {"name": "zalando", "display": "Zalando", "category": "ecommerce-ro", "references": [
-    {"label": "home",  "url": "https://www.zalando.ro/"},
-    ]},
-    {"name": "fashiondays", "display": "Fashion Days", "category": "ecommerce-ro", "references": [
-        {"label": "home",  "url": "https://www.fashiondays.ro/"},
-        {"label": "login", "url": "https://www.fashiondays.ro/customer/authentication"},
-    ]},
-    {"name": "aboutyou", "display": "About You", "category": "ecommerce-ro", "references": [
-        {"label": "home",  "url": "https://www.aboutyou.ro/"},
-        {"label": "login", "url": "https://www.aboutyou.ro/a/profile?loginFlow=register"},
-    ]},
+COOKIE_TEXTS = [
+    'Permite toate modulele cookie', 'Allow all cookies',
+    'Accept all', 'Accept All', 'Acceptă toate',
+    'I agree', 'Agree', 'Allow all', 'Got it', 'OK',
+    'De acord', 'Sunt de acord', 'I accept', 'Accept cookies',
+    'Continuă', 'Continue', 'I understand', 'Am înțeles',
+]
+
+COOKIE_SELECTORS = [
+    "#onetrust-accept-btn-handler",
+    "#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll",
+    "#truste-consent-button",
+    "div[role='button']:has-text('Permite toate modulele cookie')",
+    "div[role='button']:has-text('Allow all cookies')",
+    "div[role='button']:has-text('Accept all')",
+    "button:has-text('Accept all')", "button:has-text('Accept All')",
+    "button:has-text('Accept cookies')", "button:has-text('I agree')",
+    "button:has-text('Agree')", "button:has-text('Allow all')",
+    "button:has-text('OK')", "button:has-text('Got it')",
+    "button:has-text('Acceptă toate')", "button:has-text('Acceptă')",
+    "button:has-text('Sunt de acord')", "button:has-text('De acord')",
+    "button:has-text('Continuă')", "button:has-text('Am înțeles')",
+    "#accept-cookies", "#cookie-accept", ".accept-cookies",
+    "[aria-label='Accept cookies']", "[data-gdpr-accept='all']",
 ]
 
 
@@ -230,17 +256,30 @@ def load_clip_model():
     return model, preprocess
 
 
-def compute_embedding(model, preprocess, image_path: str) -> np.ndarray:
-    img = Image.open(image_path).convert("RGB")
-    # Crop to top portion (logo/header area) to avoid false positives from
-    # visually similar login form layouts across different sites.
+def compute_multi_crop_embeddings(model, preprocess, image_path: str) -> list:
+    try:
+        img = Image.open(image_path).convert("RGB")
+    except Exception as e:
+        print(f"    [FAIL] image load: {e}")
+        return []
+
     w, h = img.size
-    img = img.crop((0, 0, w, min(CROP_HEIGHT, h)))
-    tensor = preprocess(img).unsqueeze(0)
-    with torch.no_grad():
-        emb = model.encode_image(tensor)
-        emb = emb / emb.norm(dim=-1, keepdim=True)
-    return emb.squeeze().numpy()
+    embeddings = []
+    for strategy in CROP_STRATEGIES:
+        top = strategy["top"]
+        bottom = min(strategy["bottom"], h)
+        if bottom <= top:
+            continue
+        crop = img.crop((0, top, w, bottom))
+        try:
+            tensor = preprocess(crop).unsqueeze(0)
+            with torch.no_grad():
+                emb = model.encode_image(tensor)
+                emb = emb / emb.norm(dim=-1, keepdim=True)
+            embeddings.append(emb.squeeze().numpy())
+        except Exception:
+            continue
+    return embeddings
 
 
 async def capture(url: str, dest: Path) -> bool:
@@ -262,9 +301,27 @@ async def capture(url: str, dest: Path) -> bool:
                 "Chrome/120.0.0.0 Safari/537.36"
             ),
         )
+
+        # Inject consent cookies
+        try:
+            parsed = urlparse(url)
+            parts = (parsed.hostname or "").split(".")
+            root = "." + ".".join(parts[-2:]) if len(parts) >= 2 else parsed.hostname
+            await context.add_cookies([
+                {"name": "OptanonAlertBoxClosed", "value": "true", "domain": root, "path": "/"},
+                {"name": "OptanonConsent", "value": "isGpcEnabled=0&interactionCount=1", "domain": root, "path": "/"},
+                {"name": "CookieConsent", "value": "{stamp:'accepted',necessary:true}", "domain": root, "path": "/"},
+                {"name": "cookieconsent_status", "value": "dismiss", "domain": root, "path": "/"},
+                {"name": "cookie_consent", "value": "accepted", "domain": root, "path": "/"},
+                {"name": "cookies_accepted", "value": "true", "domain": root, "path": "/"},
+            ])
+        except Exception:
+            pass
+
         page = await context.new_page()
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+            await page.wait_for_timeout(2000)
             await _accept_cookies(page)
             await page.wait_for_timeout(1500)
             await page.screenshot(path=str(dest), full_page=False)
@@ -280,21 +337,49 @@ async def capture(url: str, dest: Path) -> bool:
 
 
 async def _accept_cookies(page) -> None:
-    selectors = [
-        "button:has-text('Accept all')", "button:has-text('Accept All')",
-        "button:has-text('Accept cookies')", "button:has-text('I agree')",
-        "button:has-text('Agree')", "button:has-text('OK')",
-        "button:has-text('Got it')", "button:has-text('Allow all')",
-        "button:has-text('Acceptă toate')", "button:has-text('Acceptă')",
-        "button:has-text('Sunt de acord')", "button:has-text('De acord')",
-    ]
-    for sel in selectors:
+    for sel in COOKIE_SELECTORS:
         try:
-            await page.locator(sel).first.click(timeout=1000)
-            await page.wait_for_timeout(500)
-            return
+            locator = page.locator(sel).first
+            if await locator.is_visible(timeout=600):
+                await locator.click(timeout=600)
+                await page.wait_for_timeout(500)
+                return
         except Exception:
             continue
+
+    for frame in page.frames:
+        if frame == page.main_frame:
+            continue
+        for sel in COOKIE_SELECTORS:
+            try:
+                locator = frame.locator(sel).first
+                if await locator.is_visible(timeout=400):
+                    await locator.click(timeout=400)
+                    await page.wait_for_timeout(500)
+                    return
+            except Exception:
+                continue
+
+    try:
+        await page.evaluate(f"""
+            () => {{
+                const texts = {COOKIE_TEXTS};
+                const els = [
+                    ...document.querySelectorAll('div[role="button"]'),
+                    ...document.querySelectorAll('button'),
+                    ...document.querySelectorAll('a[role="button"]'),
+                ];
+                for (const el of els) {{
+                    if (texts.some(t => el.textContent.trim().includes(t))) {{
+                        el.click(); return true;
+                    }}
+                }}
+                return false;
+            }}
+        """)
+        await page.wait_for_timeout(500)
+    except Exception:
+        pass
 
 
 async def main():
@@ -308,8 +393,8 @@ async def main():
         print(f"Resuming: {len(embeddings)} brands already processed\n")
 
     model, preprocess = load_clip_model()
-
     total = len(BRANDS)
+
     for i, brand in enumerate(BRANDS):
         name = brand["name"]
         refs = brand["references"]
@@ -323,8 +408,23 @@ async def main():
         for ref in refs:
             label = ref["label"]
             if label in existing_labels:
-                print(f"  [{label}] skip")
-                continue
+                # Upgrade existing single embedding to multi-crop if needed
+                existing = next((r for r in existing_refs if r["label"] == label), None)
+                if existing and "embeddings" in existing:
+                    print(f"  [{label}] skip — multi-crop exists")
+                    continue
+                elif existing:
+                    shot = existing.get("screenshot")
+                    if shot and Path(shot).exists():
+                        print(f"  [{label}] upgrading to multi-crop...")
+                        embs = compute_multi_crop_embeddings(model, preprocess, shot)
+                        if embs:
+                            existing["embeddings"] = embs
+                            existing.pop("embedding", None)
+                            existing.pop("crop_height", None)
+                            changed = True
+                            print(f"  [{label}] upgraded — {len(embs)} crops")
+                    continue
 
             dest = BRANDS_DIR / f"{name}_{label}.png"
             ok = await capture(ref["url"], dest)
@@ -332,19 +432,18 @@ async def main():
                 await asyncio.sleep(2)
                 continue
 
-            try:
-                emb = compute_embedding(model, preprocess, str(dest))
+            embs = compute_multi_crop_embeddings(model, preprocess, str(dest))
+            if embs:
                 new_refs.append({
                     "label": label,
                     "url": ref["url"],
                     "screenshot": str(dest),
-                    "embedding": emb,
-                    "crop_height": CROP_HEIGHT,
+                    "embeddings": embs,
                 })
-                print(f"  [{label}] OK — {emb.shape}")
+                print(f"  [{label}] OK — {len(embs)} crop embeddings")
                 changed = True
-            except Exception as e:
-                print(f"  [{label}] embedding error: {e}")
+            else:
+                print(f"  [{label}] embedding error")
 
             await asyncio.sleep(2)
 
@@ -359,7 +458,7 @@ async def main():
 
     processed = sum(1 for v in embeddings.values() if v["references"])
     total_refs = sum(len(v["references"]) for v in embeddings.values())
-    print(f"\nDone: {processed}/{total} brands, {total_refs} total embeddings")
+    print(f"\nDone: {processed}/{total} brands, {total_refs} total references")
     print(f"Saved to: {EMBEDDINGS_PATH}")
 
 

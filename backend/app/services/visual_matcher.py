@@ -9,7 +9,14 @@ import torch
 from PIL import Image
 
 EMBEDDINGS_PATH = Path("/app/data/brand_embeddings.pkl")
-CROP_HEIGHT = 300
+
+# Multiple crop strategies — each captures a different visual region
+CROP_STRATEGIES = [
+    {"name": "top_150",  "top": 0,    "bottom": 150},   # logo/navbar only
+    {"name": "top_300",  "top": 0,    "bottom": 300},   # header area (baseline)
+    {"name": "top_500",  "top": 0,    "bottom": 500},   # extended header
+    {"name": "mid_300",  "top": 100,  "bottom": 400},   # center (login forms)
+]
 
 _model = None
 _preprocess = None
@@ -43,36 +50,47 @@ def is_visual_available() -> bool:
     return EMBEDDINGS_PATH.exists()
 
 
-def _compute_embedding(image_path: str) -> Optional[np.ndarray]:
+def _crop_and_embed(img: Image.Image, top: int, bottom: int) -> Optional[np.ndarray]:
+    w, h = img.size
+    actual_bottom = min(bottom, h)
+    actual_top = min(top, actual_bottom)
+    if actual_bottom <= actual_top:
+        return None
+    crop = img.crop((0, actual_top, w, actual_bottom))
     try:
-        img = Image.open(image_path).convert("RGB")
-        w, h = img.size
-        img = img.crop((0, 0, w, min(CROP_HEIGHT, h)))
-        tensor = _preprocess(img).unsqueeze(0)
+        tensor = _preprocess(crop).unsqueeze(0)
         with torch.no_grad():
             emb = _model.encode_image(tensor)
             emb = emb / emb.norm(dim=-1, keepdim=True)
         return emb.squeeze().numpy()
-    except Exception as e:
-        print(f"[visual_matcher] embedding error: {e}")
+    except Exception:
         return None
 
 
-def match_brand(screenshot_path: str, threshold: float = 0.80) -> dict:
-    """Match a screenshot against the brand knowledge base.
+def _compute_query_embeddings(image_path: str) -> list[np.ndarray]:
+    try:
+        img = Image.open(image_path).convert("RGB")
+    except Exception as e:
+        print(f"[visual_matcher] image load error: {e}")
+        return []
 
-    Returns a dict with keys:
-        matched (bool), brand (str|None), display (str|None),
-        similarity (float), label (str|None)
-    """
+    embeddings = []
+    for strategy in CROP_STRATEGIES:
+        emb = _crop_and_embed(img, strategy["top"], strategy["bottom"])
+        if emb is not None:
+            embeddings.append(emb)
+    return embeddings
+
+
+def match_brand(screenshot_path: str, threshold: float = 0.80) -> dict:
     no_match = {"matched": False, "brand": None, "display": None,
                 "similarity": 0.0, "label": None}
 
     if not _load():
         return no_match
 
-    query_emb = _compute_embedding(screenshot_path)
-    if query_emb is None:
+    query_embeddings = _compute_query_embeddings(screenshot_path)
+    if not query_embeddings:
         return no_match
 
     best_brand = None
@@ -82,15 +100,24 @@ def match_brand(screenshot_path: str, threshold: float = 0.80) -> dict:
 
     for brand_name, brand_data in _embeddings.items():
         for ref in brand_data.get("references", []):
-            ref_emb = ref.get("embedding")
-            if ref_emb is None:
-                continue
-            sim = float(np.dot(query_emb, ref_emb))
-            if sim > best_sim:
-                best_sim = sim
-                best_brand = brand_name
-                best_display = brand_data.get("display", brand_name)
-                best_label = ref.get("label")
+            # Support both old format (single embedding) and new format (list of embeddings)
+            ref_embeddings = ref.get("embeddings", [])
+            if not ref_embeddings:
+                single = ref.get("embedding")
+                if single is not None:
+                    ref_embeddings = [single]
+
+            for ref_emb in ref_embeddings:
+                if ref_emb is None:
+                    continue
+                # Compare each query crop against each reference embedding
+                for query_emb in query_embeddings:
+                    sim = float(np.dot(query_emb, ref_emb))
+                    if sim > best_sim:
+                        best_sim = sim
+                        best_brand = brand_name
+                        best_display = brand_data.get("display", brand_name)
+                        best_label = ref.get("label")
 
     if best_sim >= threshold:
         return {
