@@ -5,26 +5,16 @@ import api from '../services/api'
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 const FEATURE_LABELS = {
-  url_length: 'URL length',
-  hostname_length: 'Hostname length',
-  path_length: 'Path length',
-  num_dots: 'Dot count',
-  num_hyphens: 'Hyphens in host',
-  num_slashes: 'Slash count',
-  num_underscores: 'Underscores',
-  num_question_marks: 'Question marks',
-  has_at_symbol: 'AT symbol (@)',
-  num_subdomains: 'Subdomain depth',
-  has_ip_address: 'IP in hostname',
-  is_https: 'HTTPS scheme',
-  is_url_shortener: 'URL shortener',
-  is_punycode: 'Punycode / IDN',
-  suspicious_keyword_count: 'Suspicious keywords',
-  digit_ratio: 'Digit ratio',
-  has_suspicious_tld: 'Suspicious TLD',
-  double_slash_in_path: 'Double slash in path',
-  min_brand_levenshtein: 'Brand similarity (Levenshtein)',
-  sld_is_exact_brand: 'Known brand domain',
+  url_length: 'URL length', hostname_length: 'Hostname length',
+  path_length: 'Path length', num_dots: 'Dot count',
+  num_hyphens: 'Hyphens in host', num_slashes: 'Slash count',
+  num_underscores: 'Underscores', num_question_marks: 'Question marks',
+  has_at_symbol: 'AT symbol (@)', num_subdomains: 'Subdomain depth',
+  has_ip_address: 'IP in hostname', is_https: 'HTTPS scheme',
+  is_url_shortener: 'URL shortener', is_punycode: 'Punycode / IDN',
+  suspicious_keyword_count: 'Suspicious keywords', digit_ratio: 'Digit ratio',
+  has_suspicious_tld: 'Suspicious TLD', double_slash_in_path: 'Double slash in path',
+  min_brand_levenshtein: 'Brand similarity (Levenshtein)', sld_is_exact_brand: 'Known brand domain',
 }
 
 function isRisky(key, value) {
@@ -112,15 +102,11 @@ function VerdictCard({ verdict, lexicalScore, mlScore, visualBrand }) {
       <div className="flex-1">
         <p className={`font-bold text-lg ${c.textColor}`}>{c.title}</p>
         <p className={`text-sm mt-0.5 ${c.textColor} opacity-75`}>{c.desc}</p>
-
-        {/* Confirmare brand legitim */}
         {visualBrand && verdict === 'legitimate' && (
           <p className="text-xs text-emerald-700 mt-1.5 font-medium">
             ✓ Visual module confirmed this is the official <span className="font-bold">{visualBrand}</span> page — ML suspicion score overridden.
           </p>
         )}
-
-        {/* Warning brand imitat */}
         {visualBrand && (verdict === 'suspicious' || verdict === 'phishing') && (
           <div className="mt-2 bg-white bg-opacity-60 rounded-lg px-3 py-2 border border-current border-opacity-20">
             <p className={`text-xs font-semibold ${c.textColor}`}>
@@ -131,13 +117,11 @@ function VerdictCard({ verdict, lexicalScore, mlScore, visualBrand }) {
             </p>
           </div>
         )}
-
         {!visualBrand && (verdict === 'suspicious' || verdict === 'phishing') && (
           <p className={`text-xs mt-1.5 ${c.textColor} opacity-75`}>
             Niciun brand cunoscut nu a fost identificat vizual. Procedați cu precauție.
           </p>
         )}
-
         <p className="text-xs text-gray-500 mt-2">Based on {signals.join(' + ')} analysis.</p>
       </div>
     </div>
@@ -146,6 +130,7 @@ function VerdictCard({ verdict, lexicalScore, mlScore, visualBrand }) {
 
 export default function AnalyzePage() {
   const [url, setUrl] = useState('')
+  const [visualModel, setVisualModel] = useState('clip')
   const [phase, setPhase] = useState('idle')
   const [error, setError] = useState('')
   const [stage1, setStage1] = useState({ status: 'pending', features: [] })
@@ -167,15 +152,13 @@ export default function AnalyzePage() {
     reset()
     setPhase('running')
 
-    // Stage 1 animation — fetch lexical while animating
+    // Stage 1 — Lexical
     setStage1({ status: 'running', features: [] })
     let lexData = null
     try {
       const res = await api.post('/analyze/lexical', { url })
       lexData = res.data
-    } catch {
-      // non-fatal, pipeline will still run
-    }
+    } catch { }
 
     if (lexData) {
       const entries = Object.entries(lexData.features)
@@ -187,30 +170,32 @@ export default function AnalyzePage() {
     } else {
       setStage1({ status: 'done', score: null, features: [] })
     }
-
     await sleep(300)
 
-    // Stage 2 animation — show while pipeline runs
+    // Stage 2 — ML
     setStage2({ status: 'running', note: 'Running Random Forest inference...' })
-
-    // Stage 3 animation starts while still waiting for pipeline
     await sleep(800)
     setStage3({ status: 'running', note: 'Capturing screenshot...' })
     await sleep(1000)
-    setStage3(prev => ({ ...prev, note: 'Computing CLIP embedding...' }))
+    setStage3(prev => ({ ...prev, note: `Computing ${visualModel === 'clip' ? 'CLIP' : 'DINOv2'} embedding...` }))
 
-    // Call full pipeline — saves to DB and returns unified verdict
+    // Full pipeline call
     let data = null
     try {
-      const res = await api.post('/analyze/', { url })
+      const res = await api.post('/analyze/', { url, visual_model: visualModel })
       data = res.data
     } catch (err) {
-      setError(err.response?.data?.detail || 'Analysis failed.')
-      setPhase('error')
-      return
+      // Fallback: try without visual_model param
+      try {
+        const res = await api.post('/analyze/', { url })
+        data = res.data
+      } catch (err2) {
+        setError(err2.response?.data?.detail || 'Analysis failed.')
+        setPhase('error')
+        return
+      }
     }
 
-    // Update stages with real results
     setStage2({
       status: 'done',
       score: data.ml_score,
@@ -228,9 +213,26 @@ export default function AnalyzePage() {
       similarity: data.visual_similarity,
     })
 
+    // If DINOv2 selected, run visual/dino separately for comparison
+    if (visualModel === 'dino') {
+      try {
+        const res = await api.post('/analyze/visual/dino', { url })
+        const dino = res.data
+        setStage3(prev => ({
+          ...prev,
+          matched: dino.matched,
+          display: dino.display,
+          similarity: dino.similarity,
+          screenshotUrl: `http://localhost:8000${dino.screenshot_url}`,
+        }))
+      } catch { }
+    }
+
     setResult(data)
     setPhase('done')
-  }, [url])
+  }, [url, visualModel])
+
+  const modelLabel = visualModel === 'clip' ? 'CLIP ViT-B/32' : 'DINOv2 ViT-B/14'
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -245,7 +247,35 @@ export default function AnalyzePage() {
       <main className="max-w-2xl mx-auto px-4 py-10">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <h2 className="text-lg font-bold text-gray-800 mb-1">Analyze a URL</h2>
-          <p className="text-sm text-gray-500 mb-4">Enter any URL to run the three-stage phishing detection pipeline.</p>
+          <p className="text-sm text-gray-500 mb-4">Three-stage phishing detection: lexical · ML classifier · visual matching.</p>
+
+          {/* Visual model selector */}
+          <div className="flex items-center gap-3 mb-4 p-3 bg-gray-50 rounded-lg">
+            <span className="text-xs text-gray-500 font-medium">Visual model:</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setVisualModel('clip')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  visualModel === 'clip'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300'
+                }`}
+              >
+                CLIP ViT-B/32
+              </button>
+              <button
+                onClick={() => setVisualModel('dino')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  visualModel === 'dino'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:border-purple-300'
+                }`}
+              >
+                DINOv2 ViT-B/14
+              </button>
+            </div>
+          </div>
+
           <div className="flex gap-2">
             <input
               type="text" value={url} onChange={e => setUrl(e.target.value)}
@@ -323,8 +353,12 @@ export default function AnalyzePage() {
               stage3.status === 'pending' ? 'border-gray-100 opacity-40' :
               stage3.status === 'running' ? 'border-blue-200 shadow-sm' : 'border-gray-200 shadow-sm'
             } p-5`}>
-              <StageHeader number="3" title="Visual Brand Matching"
-                subtitle="CLIP ViT-B/32 embeddings — cosine similarity against 48-brand knowledge base" status={stage3.status} />
+              <StageHeader
+                number="3"
+                title="Visual Brand Matching"
+                subtitle={`${modelLabel} embeddings — cosine similarity against 48-brand knowledge base`}
+                status={stage3.status}
+              />
               {stage3.status !== 'pending' && (
                 <div className="mt-3 ml-11">
                   {stage3.note && (
@@ -338,6 +372,9 @@ export default function AnalyzePage() {
                         <p className="text-sm text-gray-700">
                           Brand detected: <span className="font-semibold text-gray-900">{stage3.display}</span>
                           <span className="ml-2 text-xs text-gray-400 font-mono">similarity {((stage3.similarity || 0) * 100).toFixed(1)}%</span>
+                          <span className={`ml-2 text-xs px-1.5 py-0.5 rounded font-medium ${visualModel === 'dino' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                            {modelLabel}
+                          </span>
                         </p>
                       ) : (
                         <p className="text-sm text-gray-400">
@@ -353,14 +390,13 @@ export default function AnalyzePage() {
               )}
             </div>
 
-            {/* Verdict */}
             {result && phase === 'done' && (
               <div className="pt-2">
                 <VerdictCard
                   verdict={result.verdict}
                   lexicalScore={result.lexical_score}
                   mlScore={result.ml_score}
-                  visualBrand={result.visual_match_brand}
+                  visualBrand={stage3.matched ? stage3.display : null}
                 />
               </div>
             )}

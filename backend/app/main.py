@@ -8,6 +8,7 @@ from app.database import Base, engine
 from app.models.user import User
 from app.models.analysis import AnalysisRequest, AnalysisResult, BrandReference
 from app.routers import auth, analyze
+from app.routers import analyze_visual_dino
 
 
 @asynccontextmanager
@@ -35,7 +36,7 @@ app.mount("/screenshots", StaticFiles(directory="screenshots"), name="screenshot
 
 app.include_router(auth.router)
 app.include_router(analyze.router)
-
+app.include_router(analyze_visual_dino.router) 
 
 @app.get("/")
 def root():
