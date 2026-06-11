@@ -19,7 +19,7 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 REPRESENTATIVE_BRANDS = {
     "paypal", "ing", "microsoft", "facebook", "amazon",
     "netflix", "dhl", "apple", "linkedin", "adobe",
-    "dropbox", "instagram", "ebay", "google", "steam", "whatsapp",
+    "dropbox","instagram", "ebay", "google", "steam", "whatsapp",
 }
 
 def evaluate():

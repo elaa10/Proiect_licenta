@@ -147,6 +147,7 @@ async def capture_screenshot(url: str) -> str | None:
                 "--disable-dev-shm-usage",
                 "--disable-gpu",
                 "--disable-blink-features=AutomationControlled",
+                 "--disable-features=Translate",
             ],
         )
         context = await browser.new_context(

@@ -39,9 +39,9 @@ TOP_BRANDS = [
     "adobe", "yahoo", "outlook", "office365", "icloud", "wellsfargo",
     "chase", "citibank", "hsbc", "barclays", "santander", "binance",
     #ro
-    "bcr", "bancatransilvania", "raiffeisen", "brd", "ing", "cec",
+    "bcr", "bancatransilvania", "raiffeisen", "brd", "bnr", "ing", "cec",
     "unicredit", "alphabank", "first", "emag", "olx", "altex",
-    "revolut", "btpay", "anaf", "ghiseul", "cnpp", "roeid", "postaromana",
+    "revolut", "btpay", "anaf", "ghiseul", "cnpp", "roeid", "cnsas", "postaromana",
     "fancourier", "dhl",
 ]
 
