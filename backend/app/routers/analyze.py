@@ -10,6 +10,7 @@ from app.schemas.analysis import (
     ScreenshotResponse, VisualResponse, FullAnalysisResponse, AnalysisHistoryItem,
 )
 from app.services.url_analyzer import extract_features, compute_lexical_score
+from app.services.verdict import compute_verdict
 from app.services.ml_classifier import is_model_available, predict_ml_score
 from app.services.browser_capture import capture_screenshot
 from app.services.visual_matcher import is_visual_available, match_brand
@@ -23,31 +24,6 @@ def _validate_url(url: str) -> None:
     if not (url.startswith("http://") or url.startswith("https://")):
         raise HTTPException(status_code=422, detail="URL must start with http:// or https://")
 
-
-def _compute_verdict(lexical: float, ml: float | None, visual_matched: bool, visual_sim: float | None) -> str:
-    scores = [lexical]
-    if ml is not None:
-        scores.append(ml)
-
-    avg = sum(scores) / len(scores)
-
-    if visual_matched and visual_sim:
-        if visual_sim >= 0.95 and avg < 0.65:
-            # High-confidence visual brand match reduces suspicion.
-            # Compensates false positives from URL modules on legitimate
-            # pages containing auth keywords (signin, login, secure).
-            legitimacy_bonus = (visual_sim - 0.90) * 2.0
-            avg = avg * (1.0 - legitimacy_bonus)
-        elif avg < 0.4:
-            # Low URL risk + visual match → slight penalty if similarity
-            # is moderate (possible cloned page not caught by URL analysis)
-            avg = max(avg, 0.30)
-
-    if avg >= 0.55:
-        return "phishing"
-    if avg >= 0.30:
-        return "suspicious"
-    return "legitimate"
 
 
 @router.post("/lexical", response_model=LexicalResponse)
@@ -157,7 +133,7 @@ async def analyze_full(
                     visual_brand = match["brand"]
                     visual_similarity = match["similarity"]
 
-        verdict = _compute_verdict(lexical_score, ml_score, bool(visual_brand), visual_similarity)
+        verdict = compute_verdict(payload.url, lexical_score, ml_score, visual_brand, visual_similarity)["verdict"]
 
         # Store result
         result = AnalysisResult(

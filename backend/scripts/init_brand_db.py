@@ -35,24 +35,19 @@ BRANDS = [
     ]},
     {"name": "github", "display": "GitHub", "category": "tech", "references": [
         {"label": "home",  "url": "https://github.com/"},
-        {"label": "login", "url": "https://github.com/login"},
     ]},
     {"name": "dropbox", "display": "Dropbox", "category": "tech", "references": [
         {"label": "home",  "url": "https://www.dropbox.com/"},
-        {"label": "login", "url": "https://www.dropbox.com/login"},
     ]},
     {"name": "adobe", "display": "Adobe", "category": "tech", "references": [
-        {"label": "home",  "url": "https://www.adobe.com/"},
-        {"label": "login", "url": "https://auth.services.adobe.com/ro_RO/index.html"},
+        {"label": "home",  "url": "https://www.adobe.com/ro/"},
     ]},
     {"name": "zoom", "display": "Zoom", "category": "tech", "references": [
         {"label": "home",  "url": "https://zoom.us/ro-ro/"},
-        {"label": "login", "url": "https://zoom.us/signin"},
     ]},
     # ── Global — Social ──────────────────────────────────────────────────────
     {"name": "facebook", "display": "Facebook", "category": "social", "references": [
         {"label": "home",  "url": "https://www.facebook.com/"},
-        {"label": "login", "url": "https://www.facebook.com/login"},
     ]},
     {"name": "instagram", "display": "Instagram", "category": "social", "references": [
         {"label": "home",  "url": "https://www.instagram.com/"},
@@ -60,7 +55,6 @@ BRANDS = [
     ]},
     {"name": "linkedin", "display": "LinkedIn", "category": "social", "references": [
         {"label": "home",  "url": "https://www.linkedin.com/"},
-        {"label": "login", "url": "https://www.linkedin.com/login"},
     ]},
     {"name": "twitter", "display": "Twitter / X", "category": "social", "references": [
         {"label": "login", "url": "https://x.com/login"},
@@ -75,7 +69,6 @@ BRANDS = [
     ]},
     {"name": "spotify", "display": "Spotify", "category": "streaming", "references": [
         {"label": "home",  "url": "https://www.spotify.com/ro/"},
-        {"label": "login", "url": "https://accounts.spotify.com/login"},
     ]},
     {"name": "youtube", "display": "YouTube", "category": "streaming", "references": [
         {"label": "home", "url": "https://www.youtube.com/"},
@@ -91,15 +84,12 @@ BRANDS = [
     ]},
     {"name": "ebay", "display": "eBay", "category": "ecommerce", "references": [
         {"label": "home",  "url": "https://www.ebay.com/"},
-        {"label": "login", "url": "https://signin.ebay.com/signin/"},
     ]},
     {"name": "airbnb", "display": "Airbnb", "category": "travel", "references": [
         {"label": "home",  "url": "https://www.airbnb.com.ro/"},
-        {"label": "login", "url": "https://www.airbnb.com.ro/login"},
     ]},
     {"name": "booking", "display": "Booking.com", "category": "travel", "references": [
         {"label": "home",  "url": "https://www.booking.com/"},
-        {"label": "login", "url": "https://account.booking.com/sign-in"},
     ]},
     # ── Global — Finance ─────────────────────────────────────────────────────
     {"name": "paypal", "display": "PayPal", "category": "finance", "references": [
@@ -108,15 +98,12 @@ BRANDS = [
     ]},
     {"name": "revolut", "display": "Revolut", "category": "finance", "references": [
         {"label": "home",  "url": "https://www.revolut.com/ro-RO/"},
-        {"label": "login", "url": "https://sso.revolut.com/signin"},
     ]},
     {"name": "coinbase", "display": "Coinbase", "category": "finance", "references": [
         {"label": "home",  "url": "https://www.coinbase.com/"},
-        {"label": "login", "url": "https://login.coinbase.com/"},
     ]},
     {"name": "binance", "display": "Binance", "category": "finance", "references": [
         {"label": "home",  "url": "https://www.binance.com/"},
-        {"label": "login", "url": "https://accounts.binance.com/en/login"},
     ]},
     # ── Global — Logistics ───────────────────────────────────────────────────
     {"name": "dhl", "display": "DHL", "category": "logistics", "references": [
@@ -125,11 +112,11 @@ BRANDS = [
     # ── Romanian — Banking ───────────────────────────────────────────────────
     {"name": "bcr", "display": "BCR", "category": "banking-ro", "references": [
         {"label": "home",  "url": "https://www.bcr.ro/"},
-        {"label": "login", "url": "https://login-business.bcr.ro/corporate-george-auth/login"},
+        {"label": "login", "url": "https://login.bcr.ro/users/login"},
     ]},
     {"name": "bancatransilvania", "display": "Banca Transilvania", "category": "banking-ro", "references": [
         {"label": "home",    "url": "https://www.bancatransilvania.ro/"},
-        {"label": "george",  "url": "https://goapp.bancatransilvania.ro/app/auth/login"},
+        {"label": "login",  "url": "https://goapp.bancatransilvania.ro/app/auth/login"},
         {"label": "btpay",   "url": "https://btpay.bancatransilvania.ro/"},
         {"label": "btultra", "url": "https://btultra.btrl.ro/btultraweb/_mcologon"},
     ]},
@@ -138,32 +125,34 @@ BRANDS = [
     ]},
     {"name": "brd", "display": "BRD", "category": "banking-ro", "references": [
         {"label": "home", "url": "https://www.brd.ro/"},
+        {"label": "login", "url": "https://www.mybrdnet.ro/brdinternetbank/login.html"},
+        {"label": "login2", "url": "https://you.brd.ro/gateway/auth-experience/login#/"},
     ]},
     {"name": "raiffeisen", "display": "Raiffeisen Bank", "category": "banking-ro", "references": [
         {"label": "home", "url": "https://www.raiffeisen.ro/"},
     ]},
     {"name": "cecbank", "display": "CEC Bank", "category": "banking-ro", "references": [
         {"label": "home", "url": "https://www.cec.ro/"},
+        {"label": "login", "url": "https://home.ceconline.ro/Identity/Login"},
+    ]},
+    {"name": "bnr", "display": "BNR", "category": "banking-ro", "references": [
+        {"label": "home", "url": "https://www.cec.ro/"},
     ]},
     # ── Romanian — E-commerce ────────────────────────────────────────────────
     {"name": "emag", "display": "eMAG", "category": "ecommerce-ro", "references": [
         {"label": "home",  "url": "https://www.emag.ro/"},
-        {"label": "login", "url": "https://auth.emag.ro/user/login"},
     ]},
     {"name": "olx", "display": "OLX", "category": "ecommerce-ro", "references": [
         {"label": "home",  "url": "https://www.olx.ro/"},
-        {"label": "login", "url": "https://login.olx.ro/"},
     ]},
     {"name": "altex", "display": "Altex", "category": "ecommerce-ro", "references": [
         {"label": "home", "url": "https://www.altex.ro/"},
     ]},
     {"name": "elefant", "display": "Elefant", "category": "ecommerce-ro", "references": [
         {"label": "home",  "url": "https://www.elefant.ro/"},
-        {"label": "login", "url": "https://www.elefant.ro/login"},
     ]},
     {"name": "dedeman", "display": "Dedeman", "category": "ecommerce-ro", "references": [
         {"label": "home",  "url": "https://www.dedeman.ro/"},
-        {"label": "login", "url": "https://www.dedeman.ro/ro/customer/account/login"},
     ]},
     {"name": "kaufland", "display": "Kaufland", "category": "retail-ro", "references": [
         {"label": "home", "url": "https://www.kaufland.ro/"},
@@ -173,16 +162,13 @@ BRANDS = [
     ]},
     {"name": "fashiondays", "display": "Fashion Days", "category": "ecommerce-ro", "references": [
         {"label": "home",  "url": "https://www.fashiondays.ro/"},
-        {"label": "login", "url": "https://www.fashiondays.ro/customer/authentication"},
     ]},
     {"name": "aboutyou", "display": "About You", "category": "ecommerce-ro", "references": [
         {"label": "home",  "url": "https://www.aboutyou.ro/"},
-        {"label": "login", "url": "https://www.aboutyou.ro/a/profile?loginFlow=register"},
     ]},
     # ── Romanian — Logistics ─────────────────────────────────────────────────
     {"name": "postaromana", "display": "Poșta Română", "category": "logistics-ro", "references": [
         {"label": "home",  "url": "https://www.posta-romana.ro/"},
-        {"label": "login", "url": "https://www.posta-romana.ro/login.html"},
     ]},
     {"name": "fancourier", "display": "Fan Courier", "category": "logistics-ro", "references": [
         {"label": "home",  "url": "https://www.fancourier.ro/"},
@@ -194,7 +180,6 @@ BRANDS = [
     ]},
     {"name": "cargus", "display": "Cargus", "category": "logistics-ro", "references": [
         {"label": "home",  "url": "https://www.cargus.ro/"},
-        {"label": "login", "url": "https://mycargus.cargus.ro/login"},
     ]},
     # ── Romanian — Gov ───────────────────────────────────────────────────────
     {"name": "anaf", "display": "ANAF", "category": "gov-ro", "references": [
@@ -202,19 +187,24 @@ BRANDS = [
     ]},
     {"name": "ghiseulro", "display": "Ghișeul.ro", "category": "gov-ro", "references": [
         {"label": "home",  "url": "https://www.ghiseul.ro/"},
-        {"label": "login", "url": "https://www.ghiseul.ro/ghiseul/public/"},
     ]},
     {"name": "cnpp", "display": "CNPP", "category": "gov-ro", "references": [
         {"label": "home",  "url": "https://www.cnpp.ro/"},
         {"label": "login", "url": "https://www.cnpp.ro/autentificare"},
     ]},
+    {"name": "roeid", "display": "ROeID", "category": "gov-ro", "references": [        
+        {"label": "home", "url": "https://www.roeid.ro/"},    
+    ]},
+    {"name": "cnsas", "display": "CNSAS", "category": "gov-ro", "references": [
+        {"label": "home",  "url": "https://cnas.ro/"},
+        {"label": "login", "url": "https://simsass.cnas.ro/login.php"},
+    ]},
     # ── Romanian — Delivery ──────────────────────────────────────────────────
-    {"name": "tazz", "display": "Tazz", "category": "delivery-ro", "references": [
-        {"label": "home", "url": "https://tazz.ro/"},
+    {"name": "wolt", "display": "Wolt", "category": "delivery-ro", "references": [
+        {"label": "home", "url": "https://wolt.com/ro/rou"},
     ]},
     {"name": "glovo", "display": "Glovo", "category": "delivery-ro", "references": [
-        {"label": "home",  "url": "https://glovoapp.com/ro/ro/"},
-        {"label": "login", "url": "https://glovoapp.com/ro/login"},
+        {"label": "home",  "url": "https://glovoapp.com/ro/ro/"},     
     ]},
     {"name": "bolt", "display": "Bolt", "category": "delivery-ro", "references": [
         {"label": "home", "url": "https://bolt.eu/ro/"},

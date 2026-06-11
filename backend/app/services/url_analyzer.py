@@ -33,16 +33,15 @@ SUSPICIOUS_TLDS = {
 }
 
 TOP_BRANDS = [
-    # Internaționale (~30)
-    "paypal", "google", "apple", "microsoft", "amazon", "facebook",
-    "instagram", "netflix", "steam", "ebay", "dropbox", "linkedin",
+    "paypal", "google", "apple", "microsoft", "amazon", "facebook", "dropbox",
+    "instagram", "netflix", "steam", "ebay", "linkedin",
     "twitter", "youtube", "whatsapp", "tiktok", "spotify", "github",
     "adobe", "yahoo", "outlook", "office365", "icloud", "wellsfargo",
     "chase", "citibank", "hsbc", "barclays", "santander", "binance",
-    # Românești (~20)
+    #ro
     "bcr", "bancatransilvania", "raiffeisen", "brd", "ing", "cec",
     "unicredit", "alphabank", "first", "emag", "olx", "altex",
-    "revolut", "btpay", "anaf", "ghiseul", "cnpp", "postaromana",
+    "revolut", "btpay", "anaf", "ghiseul", "cnpp", "roeid", "postaromana",
     "fancourier", "dhl",
 ]
 

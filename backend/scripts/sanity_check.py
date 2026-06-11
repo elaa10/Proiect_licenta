@@ -2,17 +2,7 @@
 Sanity check pentru modelul Random Forest antrenat.
 
 Ruleaza modelul pe ~25 URL-uri cunoscute (13 legitime + 12 phishing) si
-raporteaza scorurile + verdictul. Util pentru:
-  - Verificare rapida dupa re-antrenare
-  - Demonstrare functionare pentru sustinerea de licenta
-  - Capturi de ecran pentru Cap. 4.5 (Performanta clasificatorului ML)
-
-Utilizare:
-    MSYS_NO_PATHCONV=1 docker exec -it proiect_licenta-backend-1 \\
-        python scripts/sanity_check.py
-
-Optional, pentru a salva rezultatele in JSON:
-    python scripts/sanity_check.py --output /app/results/sanity_check.json
+raporteaza scorurile + verdictul. 
 """
 
 import argparse
