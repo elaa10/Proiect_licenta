@@ -41,7 +41,7 @@ TOP_BRANDS = [
     #ro
     "bcr", "bancatransilvania", "raiffeisen", "brd", "bnr", "ing", "cec",
     "unicredit", "alphabank", "first", "emag", "olx", "altex",
-    "revolut", "btpay", "anaf", "ghiseul", "cnpp", "roeid", "cnsas", "postaromana",
+    "revolut", "btpay", "anaf", "ghiseul", "cnpp", "roeid", "cnas", "postaromana",
     "fancourier", "dhl",
 ]
 

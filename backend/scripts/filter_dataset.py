@@ -55,7 +55,7 @@ BRAND_MAPPING = {
     "Ghiseul.ro":         "ghiseulro",
     "CNPP":               "cnpp",
     "ROeID":              "roeid",
-    "CNSAS":              "cnsas",
+    "CNAS":              "cnas",
     "Wolt":               "wolt",
     "Glovo":              "glovo",
     "Bolt":               "bolt",

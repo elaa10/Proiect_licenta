@@ -195,7 +195,7 @@ BRANDS = [
     {"name": "roeid", "display": "ROeID", "category": "gov-ro", "references": [        
         {"label": "home", "url": "https://www.roeid.ro/"},    
     ]},
-    {"name": "cnsas", "display": "CNSAS", "category": "gov-ro", "references": [
+    {"name": "cnas", "display": "CNAS", "category": "gov-ro", "references": [
         {"label": "home",  "url": "https://cnas.ro/"},
         {"label": "login", "url": "https://simsass.cnas.ro/login.php"},
     ]},

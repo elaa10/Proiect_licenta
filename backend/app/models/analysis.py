@@ -34,6 +34,8 @@ class AnalysisResult(Base):
 
     request = relationship("AnalysisRequest", back_populates="result")
 
+    visual_model = Column(String(10), nullable=True) 
+
 
 class BrandReference(Base):
     __tablename__ = "brand_references"

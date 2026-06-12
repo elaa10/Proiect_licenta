@@ -213,21 +213,6 @@ export default function AnalyzePage() {
       similarity: data.visual_similarity,
     })
 
-    // If DINOv2 selected, run visual/dino separately for comparison
-    if (visualModel === 'dino') {
-      try {
-        const res = await api.post('/analyze/visual/dino', { url })
-        const dino = res.data
-        setStage3(prev => ({
-          ...prev,
-          matched: dino.matched,
-          display: dino.display,
-          similarity: dino.similarity,
-          screenshotUrl: `http://localhost:8000${dino.screenshot_url}`,
-        }))
-      } catch { }
-    }
-
     setResult(data)
     setPhase('done')
   }, [url, visualModel])

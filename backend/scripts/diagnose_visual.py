@@ -1,14 +1,3 @@
-"""
-Diagnostic script for the visual matching module.
-
-Captures a screenshot for a given URL using the production capture pipeline,
-then computes cosine similarity against every brand reference in the
-knowledge base and prints the top candidates with per-crop breakdown.
-
-Usage (inside backend container):
-    python scripts/diagnose_visual.py https://www.instagram.com/
-    python scripts/diagnose_visual.py https://www.cnsas.ro/
-"""
 import asyncio
 import sys
 from pathlib import Path

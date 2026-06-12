@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import api from '../services/api'
+import VerdictStatsCard from '../components/VerdictStatsCard'
+import VisualModelComparisonCard from '../components/VisualModelComparisonCard'
 
 export default function Dashboard() {
   const [user, setUser] = useState(null)
@@ -71,6 +73,10 @@ export default function Dashboard() {
             </div>
           </div>
         </Link>
+        <div className="mt-4 mb-6 space-y-6">
+        <VerdictStatsCard />
+          <VisualModelComparisonCard />
+        </div>
       </main>
     </div>
   )

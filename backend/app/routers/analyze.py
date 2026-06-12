@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -7,13 +8,18 @@ from app.models.analysis import AnalysisRequest, AnalysisResult
 from app.routers.auth import get_current_user
 from app.schemas.analysis import (
     AnalyzeRequest, LexicalResponse, MLResponse,
-    ScreenshotResponse, VisualResponse, FullAnalysisResponse, AnalysisHistoryItem,
+    ScreenshotResponse,  VisualResponse, FullAnalysisResponse, 
+    AnalysisHistoryItem, AnalysisStats, VisualComparisonItem, 
 )
 from app.services.url_analyzer import extract_features, compute_lexical_score
 from app.services.verdict import compute_verdict
 from app.services.ml_classifier import is_model_available, predict_ml_score
 from app.services.browser_capture import capture_screenshot
 from app.services.visual_matcher import is_visual_available, match_brand
+
+from collections import defaultdict
+
+from app.services.visual_matcher_dino import is_dino_available, match_brand_dino
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
 
@@ -102,7 +108,6 @@ async def analyze_full(
     """Full pipeline: lexical + ML + visual. Stores result in DB."""
     _validate_url(payload.url)
 
-    # Create request record
     req = AnalysisRequest(user_id=current_user.id, url=payload.url, status="running")
     db.add(req)
     db.commit()
@@ -113,6 +118,7 @@ async def analyze_full(
     screenshot_path = None
     visual_brand = None
     visual_similarity = None
+    visual_model = payload.visual_model if payload.visual_model in ("clip", "dino") else "clip"
 
     try:
         # Stage 1 — Lexical
@@ -123,19 +129,24 @@ async def analyze_full(
         if is_model_available():
             ml_score = predict_ml_score(payload.url)["score"]
 
-        # Stage 3 — Visual
+        # Stage 3 — Visual (model chosen by the user)
         filename = await capture_screenshot(payload.url)
         if filename:
             screenshot_path = f"/app/screenshots/{filename}"
-            if is_visual_available():
-                match = match_brand(screenshot_path)
+            if visual_model == "dino":
+                matcher_ready = is_dino_available()
+                match = match_brand_dino(screenshot_path) if matcher_ready else None
+            else:
+                matcher_ready = is_visual_available()
+                match = match_brand(screenshot_path) if matcher_ready else None
+
+            if match is not None:
+                visual_similarity = match.get("similarity")
                 if match["matched"]:
                     visual_brand = match["brand"]
-                    visual_similarity = match["similarity"]
 
         verdict = compute_verdict(payload.url, lexical_score, ml_score, visual_brand, visual_similarity)["verdict"]
 
-        # Store result
         result = AnalysisResult(
             request_id=req.id,
             lexical_score=lexical_score,
@@ -143,6 +154,7 @@ async def analyze_full(
             screenshot_path=screenshot_path,
             visual_match_brand=visual_brand,
             visual_similarity=visual_similarity,
+            visual_model=visual_model,
             verdict=verdict,
         )
         db.add(result)
@@ -157,6 +169,7 @@ async def analyze_full(
             ml_score=ml_score,
             visual_match_brand=visual_brand,
             visual_similarity=visual_similarity,
+            visual_model=visual_model,
             screenshot_path=screenshot_path,
             verdict=verdict,
             created_at=req.created_at,
@@ -190,3 +203,64 @@ def get_history(
         )
         for r in requests
     ]
+
+@router.get("/stats", response_model=AnalysisStats)
+def get_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    rows = (
+        db.query(AnalysisResult.verdict, func.count(AnalysisResult.id))
+        .join(AnalysisRequest, AnalysisResult.request_id == AnalysisRequest.id)
+        .filter(AnalysisRequest.user_id == current_user.id)
+        .group_by(AnalysisResult.verdict)
+        .all()
+    )
+
+    counts = {"legitimate": 0, "suspicious": 0, "phishing": 0, "unknown": 0}
+    for verdict, count in rows:
+        key = verdict if verdict in counts else "unknown"
+        counts[key] += count
+
+    return AnalysisStats(total=sum(counts.values()), **counts)
+
+@router.get("/visual/comparisons", response_model=list[VisualComparisonItem])
+def get_visual_comparisons(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    rows = (
+        db.query(AnalysisRequest.url, AnalysisResult)
+        .join(AnalysisResult, AnalysisResult.request_id == AnalysisRequest.id)
+        .filter(AnalysisRequest.user_id == current_user.id)
+        .filter(AnalysisResult.visual_model.isnot(None))
+        .order_by(AnalysisRequest.created_at.desc())
+        .all()
+    )
+
+    # Keep the most recent result per (url, model)
+    latest: dict[tuple[str, str], AnalysisResult] = {}
+    for url, result in rows:
+        key = (url, result.visual_model)
+        if key not in latest:
+            latest[key] = result
+
+    by_url: dict[str, dict[str, AnalysisResult]] = defaultdict(dict)
+    for (url, model), result in latest.items():
+        by_url[url][model] = result
+
+    comparisons = []
+    for url, models in by_url.items():
+        if "clip" in models and "dino" in models:
+            clip_r = models["clip"]
+            dino_r = models["dino"]
+            comparisons.append(VisualComparisonItem(
+                url=url,
+                clip_brand=clip_r.visual_match_brand,
+                clip_similarity=clip_r.visual_similarity,
+                dino_brand=dino_r.visual_match_brand,
+                dino_similarity=dino_r.visual_similarity,
+                agreement=clip_r.visual_match_brand == dino_r.visual_match_brand,
+            ))
+
+    return comparisons

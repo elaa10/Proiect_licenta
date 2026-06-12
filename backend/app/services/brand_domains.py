@@ -60,7 +60,7 @@ OFFICIAL_DOMAINS: dict[str, tuple[str, ...]] = {
     "ghiseulro":   ("ghiseul.ro",),
     "cnpp":        ("cnpp.ro",),
     "roeid":       ("roeid.ro",),
-    "cnsas":       ("cnsas.ro",),
+    "cnas":       ("cnas.ro",),
     # Romanian — delivery
     "wolt":        ("wolt.ro",),
     "glovo":       ("glovoapp.com",),
