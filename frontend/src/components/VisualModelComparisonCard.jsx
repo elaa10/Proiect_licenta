@@ -28,7 +28,8 @@ function exportCsv(rows) {
 }
 
 function SimilarityBar({ label, value, color }) {
-  const pct = Math.round((value || 0) * 100)
+  const pct = parseFloat(((value || 0) * 100).toFixed(1))
+  
   return (
     <div className="flex-1">
       <div className="flex justify-between text-xs text-gray-500 mb-1">

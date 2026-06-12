@@ -343,7 +343,7 @@ export default function AnalyzePage() {
               <StageHeader
                 number="3"
                 title="Visual Brand Matching"
-                subtitle={`${modelLabel} embeddings — cosine similarity against 48-brand knowledge base`}
+                subtitle={`${modelLabel} embeddings — cosine similarity against 53-brand knowledge base`}
                 status={stage3.status}
               />
               {stage3.status !== 'pending' && (
@@ -366,9 +366,6 @@ export default function AnalyzePage() {
                       ) : (
                         <p className="text-sm text-gray-400">
                           No brand match found
-                          {stage3.similarity !== null && (
-                            <span className="ml-2 text-xs font-mono">best similarity {((stage3.similarity || 0) * 100).toFixed(1)}%</span>
-                          )}
                         </p>
                       )}
                     </div>

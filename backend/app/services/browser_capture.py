@@ -165,6 +165,7 @@ async def capture_screenshot(url: str) -> str | None:
                 "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124"',
                 "sec-ch-ua-mobile": "?0",
                 "sec-ch-ua-platform": '"Windows"',
+                "Bypass-Tunnel-Reminder": "true",
             },
         )
 
