@@ -3,10 +3,6 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 
 
-class AnalyzeRequest(BaseModel):
-    url: str
-
-
 class LexicalResponse(BaseModel):
     url: str
     score: float

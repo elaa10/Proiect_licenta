@@ -28,7 +28,14 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Sign in</h1>
-        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+        {error && (
+          <div className="mb-4">
+            <p className="text-red-500 text-sm">{error}</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Don't have an account yet? <Link to="/register" className="text-blue-600 hover:underline">Create one</Link>.
+            </p>
+          </div>
+        )}
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>

@@ -8,6 +8,7 @@ from app.services.auth_service import (
     create_access_token, decode_token
 )
 from app.models.user import User
+from app.models.analysis import AnalysisRequest, AnalysisResult
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -38,3 +39,21 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)):
     return current_user
+
+@router.delete("/me", status_code=204)
+def delete_account(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Permanently deletes the current user's account and all associated analysis data."""
+    requests = db.query(AnalysisRequest).filter(AnalysisRequest.user_id == current_user.id).all()
+
+    for req in requests:
+        if req.result:
+            db.delete(req.result)
+        db.delete(req)
+
+    db.flush()
+    
+    db.delete(current_user)
+    db.commit()

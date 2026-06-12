@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import api from '../services/api'
 
 const VERDICT_COLORS = {
-  legitimate: '#10b981',
-  suspicious: '#f59e0b',
-  phishing: '#ef4444',
-  unknown: '#9ca3af',
+  legitimate: '#7FDBA3',
+  suspicious: '#FFD166',
+  phishing: '#FF8FA3',
+  unknown: '#D1D5DB',
 }
 
 const VERDICT_LABELS = {
