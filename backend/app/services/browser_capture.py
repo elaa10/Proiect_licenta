@@ -152,6 +152,7 @@ async def capture_screenshot(url: str) -> str | None:
         )
         context = await browser.new_context(
             viewport={"width": 1280, "height": 800},
+            ignore_https_errors=True,
             locale="ro-RO",
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

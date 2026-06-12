@@ -18,6 +18,12 @@ CROP_STRATEGIES = [
     {"name": "mid_300",  "top": 100,  "bottom": 400},   # center (login forms)
 ]
 
+# Ambiguity guard: a match is accepted only when the top similarity exceeds
+# the threshold AND beats the runner-up by at least this margin. Prevents
+# misidentification when several brands score very close in the saturated
+# region of the CLIP similarity space.
+MIN_CONFIDENCE_MARGIN = 0.02
+
 _model = None
 _preprocess = None
 _embeddings: dict = {}
@@ -82,7 +88,7 @@ def _compute_query_embeddings(image_path: str) -> list[np.ndarray]:
     return embeddings
 
 
-def match_brand(screenshot_path: str, threshold: float = 0.80) -> dict:
+def match_brand(screenshot_path: str, threshold: float = 0.85) -> dict:
     no_match = {"matched": False, "brand": None, "display": None,
                 "similarity": 0.0, "label": None}
 
@@ -93,14 +99,14 @@ def match_brand(screenshot_path: str, threshold: float = 0.80) -> dict:
     if not query_embeddings:
         return no_match
 
-    best_brand = None
-    best_display = None
-    best_sim = -1.0
-    best_label = None
+    # Track best similarity per brand (so the runner-up is from a DIFFERENT brand)
+    per_brand_best: dict[str, dict] = {}
 
     for brand_name, brand_data in _embeddings.items():
+        brand_best_sim = -1.0
+        brand_best_label = None
         for ref in brand_data.get("references", []):
-            # Support both old format (single embedding) and new format (list of embeddings)
+            # Support both legacy format (single embedding) and current format (list)
             ref_embeddings = ref.get("embeddings", [])
             if not ref_embeddings:
                 single = ref.get("embedding")
@@ -110,22 +116,34 @@ def match_brand(screenshot_path: str, threshold: float = 0.80) -> dict:
             for ref_emb in ref_embeddings:
                 if ref_emb is None:
                     continue
-                # Compare each query crop against each reference embedding
                 for query_emb in query_embeddings:
                     sim = float(np.dot(query_emb, ref_emb))
-                    if sim > best_sim:
-                        best_sim = sim
-                        best_brand = brand_name
-                        best_display = brand_data.get("display", brand_name)
-                        best_label = ref.get("label")
+                    if sim > brand_best_sim:
+                        brand_best_sim = sim
+                        brand_best_label = ref.get("label")
 
-    if best_sim >= threshold:
+        if brand_best_sim > -1.0:
+            per_brand_best[brand_name] = {
+                "similarity": brand_best_sim,
+                "display": brand_data.get("display", brand_name),
+                "label": brand_best_label,
+            }
+
+    if not per_brand_best:
+        return no_match
+
+    ranked = sorted(per_brand_best.items(), key=lambda x: -x[1]["similarity"])
+    top_brand, top_info = ranked[0]
+    runner_up_sim = ranked[1][1]["similarity"] if len(ranked) > 1 else 0.0
+    margin = top_info["similarity"] - runner_up_sim
+
+    if top_info["similarity"] >= threshold and margin >= MIN_CONFIDENCE_MARGIN:
         return {
             "matched": True,
-            "brand": best_brand,
-            "display": best_display,
-            "similarity": round(best_sim, 4),
-            "label": best_label,
+            "brand": top_brand,
+            "display": top_info["display"],
+            "similarity": round(top_info["similarity"], 4),
+            "label": top_info["label"],
         }
 
-    return {**no_match, "similarity": round(best_sim, 4)}
+    return {**no_match, "similarity": round(top_info["similarity"], 4)}
