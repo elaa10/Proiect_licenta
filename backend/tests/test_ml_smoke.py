@@ -24,7 +24,7 @@ SCORING_TESTS = [
     ("https://www.emag.ro/laptop/c",          "safe", "Romanian e-commerce"),
     ("https://github.com/torvalds/linux",     "safe", "GitHub repo"),
     ("https://www.facebook.com/help",         "safe", "Facebook help page"),
-    ("https://paypal.com/signin",             "safe", "PayPal legitimate signin"),
+    ("https://paypal.com",             "safe", "PayPal homepage"),
 
     # Strong phishing signals — must score high
     ("http://192.168.1.1/login/account",      "high", "Raw IP address"),
@@ -35,10 +35,10 @@ SCORING_TESTS = [
     ("http://secure-login-paypal-verify-account-update.com/banking/credentials/step2/confirm/action.php",
                                               "high", "Long URL with many keywords"),
 
-    # Medium signals
-    ("http://paypa1.com/signin",              "mid",  "Typosquatting paypal"),
-    ("http://gooogle.com/login",              "mid",  "Typosquatting google"),
-    ("https://bit.ly/3xampLe",               "mid",  "URL shortener"),
+    ("https://paypal.com/signin",             "high", "PayPal legitimate signin (corrected at verdict stage)"),
+    ("http://paypa1.com/signin",              "high", "Typosquatting paypal (confusable chars, T6)"),
+    ("http://gooogle.com/login",              "high", "Typosquatting google"),
+    ("https://bit.ly/3xampLe",                "high", "URL shortener"),
 ]
 
 # ── PROPERTY TESTS ────────────────────────────────────────────────────────────

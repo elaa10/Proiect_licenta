@@ -108,18 +108,24 @@ FEATURE_TESTS = [
     ("https://www.google.com",  "num_subdomains", 0, "www stripped → 0 subdomains"),
 
     # min_brand_levenshtein — whole SLD
-    ("http://paypa1.com",  "min_brand_levenshtein", 1, "paypa1 → paypal, distance 1"),
+    ("http://paypa1.com",  "min_brand_levenshtein", 0, "paypa1 -> paypal (normalized), distance 0"),
     ("http://gooogle.com", "min_brand_levenshtein", 1, "gooogle → google, distance 1"),
-    ("http://paypal.com",  "min_brand_levenshtein", 0, "paypal → paypal, distance 0"),
+    ("http://paypal.com",  "min_brand_levenshtein", 4, "paypal exact brand → min dist to others"),
 
     # min_brand_levenshtein — pre-hyphen token (key fix: compound phishing domains)
-    ("http://paypa1-secure.com", "min_brand_levenshtein", 1, "pre-hyphen paypa1 → paypal = 1"),
+    ("http://paypa1-secure.com", "min_brand_levenshtein", 0, "pre-hyphen paypa1 -> paypal (normalized), distance 0"),
 
     # sld_is_exact_brand
     ("https://paypal.com",        "sld_is_exact_brand", 1, "paypal is in TOP_BRANDS"),
     ("https://google.com",        "sld_is_exact_brand", 1, "google is in TOP_BRANDS"),
     ("https://paypal-secure.com", "sld_is_exact_brand", 0, "paypal-secure is not an exact match"),
     ("https://random-site.com",   "sld_is_exact_brand", 0, "unknown SLD → 0"),
+
+    # has_confusable_chars
+    ("http://paypa1.com",          "has_confusable_chars", 1, "'1' -> 'l' gives paypal"),
+    ("http://g00gle-account.com",  "has_confusable_chars", 1, "'0' -> 'o' gives google"),
+    ("https://www.google.com",     "has_confusable_chars", 0, "no confusable characters"),
+    ("https://www.bcr.ro",         "has_confusable_chars", 0, "no confusable characters"),
 ]
 
 

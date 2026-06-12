@@ -25,6 +25,7 @@ FEATURE_ORDER = [
     "is_url_shortener", "is_punycode", "suspicious_keyword_count",
     "digit_ratio", "has_suspicious_tld", "double_slash_in_path",
     "min_brand_levenshtein", "sld_is_exact_brand",
+    "has_confusable_chars",
 ]
 
 # Lista de URL-uri pentru testul de sanitate.

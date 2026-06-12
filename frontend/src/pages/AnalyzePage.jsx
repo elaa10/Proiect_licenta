@@ -15,10 +15,12 @@ const FEATURE_LABELS = {
   suspicious_keyword_count: 'Suspicious keywords', digit_ratio: 'Digit ratio',
   has_suspicious_tld: 'Suspicious TLD', double_slash_in_path: 'Double slash in path',
   min_brand_levenshtein: 'Brand similarity (Levenshtein)', sld_is_exact_brand: 'Known brand domain',
+
+  has_confusable_chars: 'Confusable characters',
 }
 
 function isRisky(key, value) {
-  const flagged = ['has_at_symbol', 'has_ip_address', 'is_url_shortener', 'is_punycode', 'has_suspicious_tld', 'double_slash_in_path']
+  const flagged = ['has_at_symbol', 'has_ip_address', 'is_url_shortener', 'is_punycode', 'has_suspicious_tld', 'double_slash_in_path', 'has_confusable_chars']
   if (flagged.includes(key)) return value === 1
   if (key === 'is_https') return value === 0
   if (key === 'suspicious_keyword_count') return value > 0
@@ -32,7 +34,7 @@ function isRisky(key, value) {
 
 function formatValue(key, value) {
   if (key === 'digit_ratio') return (value * 100).toFixed(1) + '%'
-  const bools = ['has_at_symbol', 'has_ip_address', 'is_url_shortener', 'is_punycode', 'has_suspicious_tld', 'double_slash_in_path', 'is_https', 'sld_is_exact_brand']
+  const bools = ['has_at_symbol', 'has_ip_address', 'is_url_shortener', 'is_punycode', 'has_suspicious_tld', 'double_slash_in_path', 'is_https', 'sld_is_exact_brand', 'has_confusable_chars']
   if (bools.includes(key)) return value === 1 ? 'Yes' : 'No'
   if (key === 'min_brand_levenshtein' && value >= 99) return 'No match'
   return String(value)

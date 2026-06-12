@@ -1,18 +1,3 @@
-"""
-URL lexical analyzer pentru detecția phishing-ului.
-Extrage 20 caracteristici lexicale din șirul URL-ului, fără cereri de rețea.
-
-Versiunea curentă rezolvă bug-ul identificat la antrenarea modelului ML:
-versiunea anterioară seta `min_brand_levenshtein = 99` pentru toate domeniile
-care erau brand exact (sld_is_exact_brand=1), ceea ce făcea ca modelul să
-asocieze valoarea 99 cu pattern-ul de phishing învățat din alte URL-uri lungi.
-
-În versiunea curentă:
-  - `sld_is_exact_brand = 1` dacă SLD-ul corespunde EXACT unui brand cunoscut
-  - `min_brand_levenshtein` = distanța minimă de la SLD la oricare ALT brand,
-    excluzând brandul cu match exact. Pentru google.com, asta dă ~6
-    (distanța la apple, paypal etc.), valoare realistă, nu sentinela 99.
-"""
 import re
 from urllib.parse import urlparse
 
@@ -48,6 +33,16 @@ TOP_BRANDS = [
 _BRANDS_SET = set(TOP_BRANDS)
 _IP_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
 
+_CONFUSABLE_TRANSLATION = str.maketrans({
+    "0": "o", "1": "l", "3": "e", "4": "a",
+    "5": "s", "6": "g", "8": "b", "@": "a",
+})
+
+
+def _normalize_confusables(s: str) -> str:
+    """Map visually confusable ASCII characters to their canonical form."""
+    return s.replace("rn", "m").replace("vv", "w").translate(_CONFUSABLE_TRANSLATION)
+
 
 def extract_features(url: str) -> dict:
     """Extrage 20 caracteristici lexicale dintr-un URL. Nu face cereri de rețea."""
@@ -74,6 +69,9 @@ def extract_features(url: str) -> dict:
     #   (excludem brandul cu match exact, ca sa nu se intoarca 0).
     pre_hyphen = sld.split("-")[0] if "-" in sld else sld
     sld_is_exact_brand = int(sld in _BRANDS_SET)
+    sld_norm = _normalize_confusables(sld)
+    pre_hyphen_norm = _normalize_confusables(pre_hyphen)
+    has_confusable_chars = int(sld_norm != sld or pre_hyphen_norm != pre_hyphen)
 
     # Construim lista de branduri folosita pentru comparatie:
     # - daca SLD-ul este match exact, excludem chiar acel brand
@@ -85,9 +83,9 @@ def extract_features(url: str) -> dict:
 
     distances = []
     for b in brands_for_compare:
-        distances.append(_levenshtein(sld, b))
-        if pre_hyphen != sld:
-            distances.append(_levenshtein(pre_hyphen, b))
+        distances.append(_levenshtein(sld_norm, b))
+        if pre_hyphen_norm != sld_norm:
+            distances.append(_levenshtein(pre_hyphen_norm, b))
     min_lev = min(distances) if distances else 99
 
     slash_count = url.count("/") - (2 if "://" in url else 0)
@@ -113,6 +111,7 @@ def extract_features(url: str) -> dict:
         "double_slash_in_path": int("//" in path),
         "min_brand_levenshtein": min_lev,
         "sld_is_exact_brand": sld_is_exact_brand,
+        "has_confusable_chars": has_confusable_chars,
     }
 
 
@@ -167,6 +166,8 @@ def compute_lexical_score(features: dict) -> float:
     # Typosquatting: distanta mica (1-3) la un brand cunoscut.
     # Aplicabil DOAR cand sld NU este match exact, ca sa nu penalizam google.com.
     lev = features["min_brand_levenshtein"]
+    if features["has_confusable_chars"] and not features["sld_is_exact_brand"] and lev <= 3:
+        score += 0.15
     if not features["sld_is_exact_brand"] and 1 <= lev <= 3:
         score += 0.15
 
@@ -202,5 +203,5 @@ def _default_features() -> dict:
         "has_at_symbol", "num_subdomains", "has_ip_address", "is_https",
         "is_url_shortener", "is_punycode", "suspicious_keyword_count",
         "digit_ratio", "has_suspicious_tld", "double_slash_in_path",
-        "min_brand_levenshtein", "sld_is_exact_brand",
+        "min_brand_levenshtein", "sld_is_exact_brand", "has_confusable_chars",
     ]}

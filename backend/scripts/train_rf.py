@@ -52,6 +52,7 @@ FEATURE_ORDER = [
     "is_url_shortener", "is_punycode", "suspicious_keyword_count",
     "digit_ratio", "has_suspicious_tld", "double_slash_in_path",
     "min_brand_levenshtein", "sld_is_exact_brand",
+    "has_confusable_chars",
 ]
 
 
@@ -114,7 +115,7 @@ def load_dataset(csv_path: str, sample: int | None) -> pd.DataFrame:
 
 
 def build_feature_matrix(urls: pd.Series) -> np.ndarray:
-    print(f"[features] Extracting 20 features from {len(urls)} URLs ...")
+    print(f"[features] Extracting 21 features from {len(urls)} URLs ...")
     rows = []
     for i, url in enumerate(urls):
         if i and i % 20000 == 0:
@@ -204,9 +205,29 @@ def main():
     )
     print(f"[split] train={len(X_train)}  test={len(X_test)}")
 
+    
+    
+    X_train_act, X_val, y_train_act, y_val = train_test_split(
+        X_train, y_train, test_size=0.2, stratify=y_train, random_state=42
+    )
+    print(f"[split] train_actual={len(X_train_act)}  val={len(X_val)}")
+
     fold_metrics, cv_summary = cross_validate(
         X_train, y_train, n_splits=5, n_estimators=args.n_estimators
     )
+
+    print(f"[val] Fitting model on train_actual ({len(X_train_act)} samples) to select tau ...")
+    val_clf = RandomForestClassifier(
+        n_estimators=args.n_estimators,
+        max_depth=None,
+        min_samples_split=2,
+        class_weight="balanced",
+        n_jobs=-1,
+        random_state=42,
+    )
+    val_clf.fit(X_train_act, y_train_act)
+    best_tau = find_best_f1_threshold(y_val, val_clf.predict_proba(X_val)[:, 1])
+    print(f"[val] Optimal F1 tau (selected on validation set): {best_tau:.4f}")
 
     print(f"[train] Fitting final model on full training set ({len(X_train)} samples) ...")
     clf = RandomForestClassifier(
@@ -222,7 +243,6 @@ def main():
     proba_test = clf.predict_proba(X_test)[:, 1]
     auc_roc = round(roc_auc_score(y_test, proba_test), 4)
     auc_pr  = round(average_precision_score(y_test, proba_test), 4)
-    best_tau = find_best_f1_threshold(y_test, proba_test)
 
     m_best = metrics_at_threshold(y_test, proba_test, best_tau)
     m_05   = metrics_at_threshold(y_test, proba_test, 0.5)
@@ -264,6 +284,8 @@ def main():
         "dataset_size": len(df),
         "train_size": len(X_train),
         "test_size": len(X_test),
+        "validation_size": len(X_val),
+        "threshold_selected_on": "validation_set",
         "phishing_count": int(y.sum()),
         "legitimate_count": int((y == 0).sum()),
         "cross_validation": {"folds": fold_metrics, "summary": cv_summary},
