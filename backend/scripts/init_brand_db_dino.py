@@ -1,8 +1,3 @@
-"""
-Builds DINOv2 brand knowledge base.
-Uses same screenshots as CLIP version — only embeddings differ.
-Output: /app/data/brand_embeddings_dino.pkl
-"""
 import asyncio
 import pickle
 from pathlib import Path
@@ -17,10 +12,10 @@ BRANDS_DIR = Path("/app/screenshots/brands")
 EMBEDDINGS_PATH = Path("/app/data/brand_embeddings_dino.pkl")
 
 CROP_STRATEGIES = [
-    {"name": "top_150",  "top": 0,   "bottom": 150},
-    {"name": "top_300",  "top": 0,   "bottom": 300},
-    {"name": "top_500",  "top": 0,   "bottom": 500},
-    {"name": "mid_300",  "top": 100, "bottom": 400},
+    {"name": "logo_left",    "x1": 0.00, "y1": 0.00, "x2": 0.35, "y2": 0.30},
+    {"name": "logo_center",  "x1": 0.25, "y1": 0.00, "x2": 0.75, "y2": 0.35},
+    {"name": "upper_third",  "x1": 0.00, "y1": 0.00, "x2": 1.00, "y2": 0.35},
+    {"name": "center_band",  "x1": 0.00, "y1": 0.20, "x2": 1.00, "y2": 0.65},
 ]
 
 COOKIE_TEXTS = [
@@ -259,20 +254,22 @@ def compute_multi_crop_embeddings(model, processor, image_path: str) -> list:
     except Exception as e:
         print(f"    [FAIL] image load: {e}")
         return []
-
+ 
     w, h = img.size
     embeddings = []
     for strategy in CROP_STRATEGIES:
-        top = strategy["top"]
-        bottom = min(strategy["bottom"], h)
-        if bottom <= top:
+        left   = max(0, min(w, int(round(strategy["x1"] * w))))
+        top    = max(0, min(h, int(round(strategy["y1"] * h))))
+        right  = max(0, min(w, int(round(strategy["x2"] * w))))
+        bottom = max(0, min(h, int(round(strategy["y2"] * h))))
+        if right <= left or bottom <= top:
             continue
-        crop = img.crop((0, top, w, bottom))
+        crop = img.crop((left, top, right, bottom))
         try:
             inputs = processor(images=crop, return_tensors="pt")
             with torch.no_grad():
                 outputs = model(**inputs)
-                emb = outputs.last_hidden_state[:, 0, :]
+                emb = outputs.last_hidden_state[:, 0, :]  # CLS token
                 emb = emb / emb.norm(dim=-1, keepdim=True)
             embeddings.append(emb.squeeze().numpy())
         except Exception:

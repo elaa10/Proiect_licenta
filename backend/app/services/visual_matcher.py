@@ -10,18 +10,23 @@ from PIL import Image
 
 EMBEDDINGS_PATH = Path("/app/data/brand_embeddings.pkl")
 
-# Multiple crop strategies — each captures a different visual region
+# Proportional crop strategies (coordinates relative to image dimensions).
+# Combines logo-focused crops (precision) with broader regions (recall).
+# The same strategy list MUST be used in init_brand_db.py at reference build time.
+#
+# Note: a narrow top strip (e.g. 0-15% of height) was evaluated but excluded
+# because it produced saturated embeddings on pages with uniform white regions
+# in the header area, causing multiple unrelated brands to score near 1.0 and
+# eliminating the runner-up margin.
 CROP_STRATEGIES = [
-    {"name": "top_150",  "top": 0,    "bottom": 150},   # logo/navbar only
-    {"name": "top_300",  "top": 0,    "bottom": 300},   # header area (baseline)
-    {"name": "top_500",  "top": 0,    "bottom": 500},   # extended header
-    {"name": "mid_300",  "top": 100,  "bottom": 400},   # center (login forms)
+    {"name": "logo_left",    "x1": 0.00, "y1": 0.00, "x2": 0.35, "y2": 0.30},
+    {"name": "logo_center",  "x1": 0.25, "y1": 0.00, "x2": 0.75, "y2": 0.35},
+    {"name": "upper_third",  "x1": 0.00, "y1": 0.00, "x2": 1.00, "y2": 0.35},
+    {"name": "center_band",  "x1": 0.00, "y1": 0.20, "x2": 1.00, "y2": 0.65},
 ]
 
 # Ambiguity guard: a match is accepted only when the top similarity exceeds
-# the threshold AND beats the runner-up by at least this margin. Prevents
-# misidentification when several brands score very close in the saturated
-# region of the CLIP similarity space.
+# the threshold AND beats the runner-up brand by at least this margin.
 MIN_CONFIDENCE_MARGIN = 0.02
 
 _model = None
@@ -56,13 +61,24 @@ def is_visual_available() -> bool:
     return EMBEDDINGS_PATH.exists()
 
 
-def _crop_and_embed(img: Image.Image, top: int, bottom: int) -> Optional[np.ndarray]:
+def _crop_proportional(
+    img: Image.Image,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+) -> Optional[Image.Image]:
     w, h = img.size
-    actual_bottom = min(bottom, h)
-    actual_top = min(top, actual_bottom)
-    if actual_bottom <= actual_top:
+    left   = max(0, min(w, int(round(x1 * w))))
+    top    = max(0, min(h, int(round(y1 * h))))
+    right  = max(0, min(w, int(round(x2 * w))))
+    bottom = max(0, min(h, int(round(y2 * h))))
+    if right <= left or bottom <= top:
         return None
-    crop = img.crop((0, actual_top, w, actual_bottom))
+    return img.crop((left, top, right, bottom))
+
+
+def _embed_crop(crop: Image.Image) -> Optional[np.ndarray]:
     try:
         tensor = _preprocess(crop).unsqueeze(0)
         with torch.no_grad():
@@ -82,7 +98,14 @@ def _compute_query_embeddings(image_path: str) -> list[np.ndarray]:
 
     embeddings = []
     for strategy in CROP_STRATEGIES:
-        emb = _crop_and_embed(img, strategy["top"], strategy["bottom"])
+        crop = _crop_proportional(
+            img,
+            x1=strategy["x1"], y1=strategy["y1"],
+            x2=strategy["x2"], y2=strategy["y2"],
+        )
+        if crop is None:
+            continue
+        emb = _embed_crop(crop)
         if emb is not None:
             embeddings.append(emb)
     return embeddings
@@ -99,14 +122,12 @@ def match_brand(screenshot_path: str, threshold: float = 0.85) -> dict:
     if not query_embeddings:
         return no_match
 
-    # Track best similarity per brand (so the runner-up is from a DIFFERENT brand)
     per_brand_best: dict[str, dict] = {}
 
     for brand_name, brand_data in _embeddings.items():
         brand_best_sim = -1.0
         brand_best_label = None
         for ref in brand_data.get("references", []):
-            # Support both legacy format (single embedding) and current format (list)
             ref_embeddings = ref.get("embeddings", [])
             if not ref_embeddings:
                 single = ref.get("embedding")
