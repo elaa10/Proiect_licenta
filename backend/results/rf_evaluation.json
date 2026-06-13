@@ -1,0 +1,188 @@
+{
+  "classifier": "RandomForest",
+  "training_dataset": "merged_training_dataset.csv",
+  "n_estimators": 200,
+  "dataset_size": 147980,
+  "train_size": 118384,
+  "test_size": 29596,
+  "validation_size": 23677,
+  "threshold_selected_on": "validation_set",
+  "phishing_count": 72982,
+  "legitimate_count": 74998,
+  "cross_validation": {
+    "folds": [
+      {
+        "fold": 1,
+        "auc_roc": 0.976,
+        "auc_pr": 0.9766,
+        "f1_at_05": 0.9224
+      },
+      {
+        "fold": 2,
+        "auc_roc": 0.9741,
+        "auc_pr": 0.9735,
+        "f1_at_05": 0.9168
+      },
+      {
+        "fold": 3,
+        "auc_roc": 0.9751,
+        "auc_pr": 0.976,
+        "f1_at_05": 0.9181
+      },
+      {
+        "fold": 4,
+        "auc_roc": 0.9728,
+        "auc_pr": 0.9731,
+        "f1_at_05": 0.9151
+      },
+      {
+        "fold": 5,
+        "auc_roc": 0.9727,
+        "auc_pr": 0.9743,
+        "f1_at_05": 0.9141
+      }
+    ],
+    "summary": {
+      "auc_roc_mean": 0.9741,
+      "auc_roc_std": 0.0013,
+      "auc_pr_mean": 0.9747,
+      "f1_mean": 0.9173
+    }
+  },
+  "test_set": {
+    "auc_roc": 0.9619,
+    "auc_pr": 0.9604,
+    "optimal_threshold_f1": 0.45,
+    "metrics_optimal_f1": {
+      "threshold": 0.45,
+      "precision": 0.8621,
+      "recall": 0.9244,
+      "f1": 0.8921,
+      "fpr": 0.1439,
+      "tp": 13492,
+      "fp": 2159,
+      "tn": 12841,
+      "fn": 1104
+    },
+    "metrics_tau_030": {
+      "threshold": 0.3,
+      "precision": 0.82,
+      "recall": 0.9519,
+      "f1": 0.881,
+      "fpr": 0.2033,
+      "tp": 13894,
+      "fp": 3050,
+      "tn": 11950,
+      "fn": 702
+    },
+    "metrics_tau_050": {
+      "threshold": 0.5,
+      "precision": 0.8766,
+      "recall": 0.9135,
+      "f1": 0.8947,
+      "fpr": 0.1251,
+      "tp": 13334,
+      "fp": 1877,
+      "tn": 13123,
+      "fn": 1262
+    },
+    "metrics_tau_070": {
+      "threshold": 0.7,
+      "precision": 0.9278,
+      "recall": 0.8474,
+      "f1": 0.8858,
+      "fpr": 0.0642,
+      "tp": 12369,
+      "fp": 963,
+      "tn": 14037,
+      "fn": 2227
+    }
+  },
+  "feature_importance": [
+    {
+      "feature": "is_https",
+      "importance": 0.1774
+    },
+    {
+      "feature": "path_length",
+      "importance": 0.1469
+    },
+    {
+      "feature": "num_slashes",
+      "importance": 0.095
+    },
+    {
+      "feature": "url_length",
+      "importance": 0.0931
+    },
+    {
+      "feature": "hostname_length",
+      "importance": 0.0893
+    },
+    {
+      "feature": "min_brand_levenshtein",
+      "importance": 0.0757
+    },
+    {
+      "feature": "digit_ratio",
+      "importance": 0.0715
+    },
+    {
+      "feature": "num_dots",
+      "importance": 0.0646
+    },
+    {
+      "feature": "suspicious_keyword_count",
+      "importance": 0.0474
+    },
+    {
+      "feature": "num_subdomains",
+      "importance": 0.0446
+    },
+    {
+      "feature": "num_hyphens",
+      "importance": 0.0271
+    },
+    {
+      "feature": "has_suspicious_tld",
+      "importance": 0.0174
+    },
+    {
+      "feature": "num_underscores",
+      "importance": 0.0156
+    },
+    {
+      "feature": "sld_is_exact_brand",
+      "importance": 0.0126
+    },
+    {
+      "feature": "num_question_marks",
+      "importance": 0.0091
+    },
+    {
+      "feature": "has_confusable_chars",
+      "importance": 0.005
+    },
+    {
+      "feature": "has_at_symbol",
+      "importance": 0.0048
+    },
+    {
+      "feature": "is_url_shortener",
+      "importance": 0.0015
+    },
+    {
+      "feature": "double_slash_in_path",
+      "importance": 0.0014
+    },
+    {
+      "feature": "is_punycode",
+      "importance": 0.0001
+    },
+    {
+      "feature": "has_ip_address",
+      "importance": 0.0
+    }
+  ],
+  "elapsed_seconds": 88.0
+}
