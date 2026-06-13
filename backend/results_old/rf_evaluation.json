@@ -1,0 +1,182 @@
+{
+  "classifier": "RandomForest",
+  "training_dataset": "merged_training_dataset.csv",
+  "n_estimators": 200,
+  "dataset_size": 147980,
+  "train_size": 118384,
+  "test_size": 29596,
+  "phishing_count": 72982,
+  "legitimate_count": 74998,
+  "cross_validation": {
+    "folds": [
+      {
+        "fold": 1,
+        "auc_roc": 0.9759,
+        "auc_pr": 0.9766,
+        "f1_at_05": 0.9215
+      },
+      {
+        "fold": 2,
+        "auc_roc": 0.9738,
+        "auc_pr": 0.9732,
+        "f1_at_05": 0.9164
+      },
+      {
+        "fold": 3,
+        "auc_roc": 0.975,
+        "auc_pr": 0.9759,
+        "f1_at_05": 0.9173
+      },
+      {
+        "fold": 4,
+        "auc_roc": 0.9727,
+        "auc_pr": 0.9727,
+        "f1_at_05": 0.915
+      },
+      {
+        "fold": 5,
+        "auc_roc": 0.9726,
+        "auc_pr": 0.9741,
+        "f1_at_05": 0.9145
+      }
+    ],
+    "summary": {
+      "auc_roc_mean": 0.974,
+      "auc_roc_std": 0.0013,
+      "auc_pr_mean": 0.9745,
+      "f1_mean": 0.9169
+    }
+  },
+  "test_set": {
+    "auc_roc": 0.9617,
+    "auc_pr": 0.9604,
+    "optimal_threshold_f1": 0.5223,
+    "metrics_optimal_f1": {
+      "threshold": 0.5223,
+      "precision": 0.884,
+      "recall": 0.9065,
+      "f1": 0.8951,
+      "fpr": 0.1157,
+      "tp": 13232,
+      "fp": 1736,
+      "tn": 13264,
+      "fn": 1364
+    },
+    "metrics_tau_030": {
+      "threshold": 0.3,
+      "precision": 0.8195,
+      "recall": 0.9518,
+      "f1": 0.8807,
+      "fpr": 0.2041,
+      "tp": 13893,
+      "fp": 3061,
+      "tn": 11939,
+      "fn": 703
+    },
+    "metrics_tau_050": {
+      "threshold": 0.5,
+      "precision": 0.8759,
+      "recall": 0.9131,
+      "f1": 0.8941,
+      "fpr": 0.1259,
+      "tp": 13328,
+      "fp": 1889,
+      "tn": 13111,
+      "fn": 1268
+    },
+    "metrics_tau_070": {
+      "threshold": 0.7,
+      "precision": 0.9276,
+      "recall": 0.848,
+      "f1": 0.886,
+      "fpr": 0.0644,
+      "tp": 12378,
+      "fp": 966,
+      "tn": 14034,
+      "fn": 2218
+    }
+  },
+  "feature_importance": [
+    {
+      "feature": "is_https",
+      "importance": 0.1698
+    },
+    {
+      "feature": "path_length",
+      "importance": 0.1502
+    },
+    {
+      "feature": "num_slashes",
+      "importance": 0.1027
+    },
+    {
+      "feature": "url_length",
+      "importance": 0.0983
+    },
+    {
+      "feature": "hostname_length",
+      "importance": 0.0876
+    },
+    {
+      "feature": "digit_ratio",
+      "importance": 0.0767
+    },
+    {
+      "feature": "min_brand_levenshtein",
+      "importance": 0.0758
+    },
+    {
+      "feature": "num_dots",
+      "importance": 0.0622
+    },
+    {
+      "feature": "suspicious_keyword_count",
+      "importance": 0.047
+    },
+    {
+      "feature": "num_subdomains",
+      "importance": 0.0433
+    },
+    {
+      "feature": "num_hyphens",
+      "importance": 0.0269
+    },
+    {
+      "feature": "has_suspicious_tld",
+      "importance": 0.0154
+    },
+    {
+      "feature": "num_underscores",
+      "importance": 0.0152
+    },
+    {
+      "feature": "sld_is_exact_brand",
+      "importance": 0.0127
+    },
+    {
+      "feature": "num_question_marks",
+      "importance": 0.0086
+    },
+    {
+      "feature": "has_at_symbol",
+      "importance": 0.0047
+    },
+    {
+      "feature": "double_slash_in_path",
+      "importance": 0.0014
+    },
+    {
+      "feature": "is_url_shortener",
+      "importance": 0.0014
+    },
+    {
+      "feature": "is_punycode",
+      "importance": 0.0001
+    },
+    {
+      "feature": "has_ip_address",
+      "importance": 0.0
+    }
+  ],
+  "elapsed_seconds": 84.2
+}

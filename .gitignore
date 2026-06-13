@@ -22,6 +22,8 @@ Thumbs.db
 
 # Large binary files (safety net)
 *.pkl
+!backend/data/brand_embeddings.backup.pkl
+!backend/data/brand_embeddings_dino.backup.pkl
 *.joblib
 
 # Screenshots — contents ignored, folder kept via .gitkeep

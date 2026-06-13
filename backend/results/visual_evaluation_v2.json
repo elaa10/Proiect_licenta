@@ -1,0 +1,280 @@
+{
+  "dataset": "Phishpedia benchmark (Lin et al., USENIX Security 2021) - V2 Evaluation",
+  "total_samples": 12289,
+  "total_brands": 21,
+  "threshold": 0.85,
+  "strategy": "Hybrid (Pixel + Proportional) with White Border Trimming",
+  "overall": {
+    "tp": 1583,
+    "fp": 2759,
+    "fn": 7947,
+    "precision": 0.3646,
+    "recall": 0.1661,
+    "f1": 0.2282,
+    "detection_rate": 0.1288
+  },
+  "representative_brands_only": {
+    "brands": [
+      "adobe",
+      "amazon",
+      "apple",
+      "dhl",
+      "dropbox",
+      "ebay",
+      "facebook",
+      "google",
+      "ing",
+      "instagram",
+      "linkedin",
+      "microsoft",
+      "netflix",
+      "paypal",
+      "steam",
+      "whatsapp"
+    ],
+    "samples": 12168,
+    "precision": 0.3666,
+    "recall": 0.1673,
+    "f1": 0.2297
+  },
+  "similarity_stats": {
+    "mean": 0.8761,
+    "std": 0.0812,
+    "min": 0.0,
+    "max": 1.0
+  },
+  "per_brand": {
+    "paypal": {
+      "samples": 4810,
+      "tp": 638,
+      "fp": 2008,
+      "fn": 2164,
+      "precision": 0.2411,
+      "recall": 0.2277,
+      "f1": 0.2342,
+      "identification_rate": 0.1326,
+      "representative": true
+    },
+    "microsoft": {
+      "samples": 1046,
+      "tp": 2,
+      "fp": 241,
+      "fn": 803,
+      "precision": 0.0082,
+      "recall": 0.0025,
+      "f1": 0.0038,
+      "identification_rate": 0.0019,
+      "representative": true
+    },
+    "facebook": {
+      "samples": 993,
+      "tp": 12,
+      "fp": 14,
+      "fn": 967,
+      "precision": 0.4615,
+      "recall": 0.0123,
+      "f1": 0.0239,
+      "identification_rate": 0.0121,
+      "representative": true
+    },
+    "amazon": {
+      "samples": 807,
+      "tp": 367,
+      "fp": 7,
+      "fn": 433,
+      "precision": 0.9813,
+      "recall": 0.4587,
+      "f1": 0.6252,
+      "identification_rate": 0.4548,
+      "representative": true
+    },
+    "netflix": {
+      "samples": 747,
+      "tp": 472,
+      "fp": 7,
+      "fn": 268,
+      "precision": 0.9854,
+      "recall": 0.6378,
+      "f1": 0.7744,
+      "identification_rate": 0.6319,
+      "representative": true
+    },
+    "dhl": {
+      "samples": 727,
+      "tp": 3,
+      "fp": 72,
+      "fn": 652,
+      "precision": 0.04,
+      "recall": 0.0046,
+      "f1": 0.0082,
+      "identification_rate": 0.0041,
+      "representative": true
+    },
+    "apple": {
+      "samples": 585,
+      "tp": 4,
+      "fp": 10,
+      "fn": 571,
+      "precision": 0.2857,
+      "recall": 0.007,
+      "f1": 0.0136,
+      "identification_rate": 0.0068,
+      "representative": true
+    },
+    "linkedin": {
+      "samples": 501,
+      "tp": 0,
+      "fp": 62,
+      "fn": 439,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0,
+      "identification_rate": 0.0,
+      "representative": true
+    },
+    "adobe": {
+      "samples": 455,
+      "tp": 0,
+      "fp": 1,
+      "fn": 454,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0,
+      "identification_rate": 0.0,
+      "representative": true
+    },
+    "dropbox": {
+      "samples": 376,
+      "tp": 0,
+      "fp": 9,
+      "fn": 367,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0,
+      "identification_rate": 0.0,
+      "representative": true
+    },
+    "instagram": {
+      "samples": 275,
+      "tp": 20,
+      "fp": 144,
+      "fn": 111,
+      "precision": 0.122,
+      "recall": 0.1527,
+      "f1": 0.1356,
+      "identification_rate": 0.0727,
+      "representative": true
+    },
+    "ebay": {
+      "samples": 232,
+      "tp": 30,
+      "fp": 4,
+      "fn": 198,
+      "precision": 0.8824,
+      "recall": 0.1316,
+      "f1": 0.229,
+      "identification_rate": 0.1293,
+      "representative": true
+    },
+    "google": {
+      "samples": 218,
+      "tp": 31,
+      "fp": 20,
+      "fn": 167,
+      "precision": 0.6078,
+      "recall": 0.1566,
+      "f1": 0.249,
+      "identification_rate": 0.1422,
+      "representative": true
+    },
+    "steam": {
+      "samples": 183,
+      "tp": 0,
+      "fp": 125,
+      "fn": 58,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0,
+      "identification_rate": 0.0,
+      "representative": true
+    },
+    "whatsapp": {
+      "samples": 178,
+      "tp": 0,
+      "fp": 2,
+      "fn": 176,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0,
+      "identification_rate": 0.0,
+      "representative": true
+    },
+    "raiffeisen": {
+      "samples": 49,
+      "tp": 0,
+      "fp": 31,
+      "fn": 18,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0,
+      "identification_rate": 0.0,
+      "representative": false
+    },
+    "ing": {
+      "samples": 35,
+      "tp": 0,
+      "fp": 2,
+      "fn": 33,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0,
+      "identification_rate": 0.0,
+      "representative": true
+    },
+    "spotify": {
+      "samples": 28,
+      "tp": 4,
+      "fp": 0,
+      "fn": 24,
+      "precision": 1.0,
+      "recall": 0.1429,
+      "f1": 0.25,
+      "identification_rate": 0.1429,
+      "representative": false
+    },
+    "airbnb": {
+      "samples": 22,
+      "tp": 0,
+      "fp": 0,
+      "fn": 22,
+      "precision": 0,
+      "recall": 0.0,
+      "f1": 0,
+      "identification_rate": 0.0,
+      "representative": false
+    },
+    "twitter": {
+      "samples": 15,
+      "tp": 0,
+      "fp": 0,
+      "fn": 15,
+      "precision": 0,
+      "recall": 0.0,
+      "f1": 0,
+      "identification_rate": 0.0,
+      "representative": false
+    },
+    "coinbase": {
+      "samples": 7,
+      "tp": 0,
+      "fp": 0,
+      "fn": 7,
+      "precision": 0,
+      "recall": 0.0,
+      "f1": 0,
+      "identification_rate": 0.0,
+      "representative": false
+    }
+  },
+  "errors": []
+}

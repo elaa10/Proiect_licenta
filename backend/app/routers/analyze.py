@@ -15,7 +15,7 @@ from app.services.url_analyzer import extract_features, compute_lexical_score
 from app.services.verdict import compute_verdict
 from app.services.ml_classifier import is_model_available, predict_ml_score
 from app.services.browser_capture import capture_screenshot
-from app.services.visual_matcher import is_visual_available, match_brand
+from app.services.visual_matcher_v2 import is_visual_available, match_brand
 
 from collections import defaultdict
 

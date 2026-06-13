@@ -95,7 +95,7 @@ def evaluate():
         "strategy": "multi-crop (top_150, top_300, top_500, mid_300)",
         "dataset": "Phishpedia benchmark (Lin et al., USENIX Security 2021)",
         "total_samples": total_samples,
-        "threshold": 0.80,
+        "threshold": 0.85,
         "overall": {
             "tp": total_tp, "fp": total_fp, "fn": total_fn,
             "precision": round(precision, 4),

@@ -1,6 +1,10 @@
 """
-DINOv2 visual module evaluation on Phishpedia benchmark.
-Output: backend/results/visual_evaluation_dino.json
+AUX DINOv2 visual module evaluation on Phishpedia benchmark.
+
+Goes in: backend/scripts/evaluate_visual_dino_aux.py
+
+Output: backend/results/visual_evaluation_dino_aux.json
+Compare with: backend/results/visual_evaluation_dino.json (current dino model)
 """
 import json
 import sys
@@ -10,7 +14,7 @@ from collections import defaultdict
 import numpy as np
 
 sys.path.insert(0, "/app")
-from app.services.visual_matcher_dino import match_brand_dino, _load
+from app.services.visual_matcher_dino_aux import match_brand_dino_aux, _load
 
 FILTERED_DIR = Path("/app/evaluation/phishpedia_filtered")
 RESULTS_DIR  = Path("/app/results")
@@ -19,18 +23,20 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 REPRESENTATIVE_BRANDS = {
     "paypal", "ing", "microsoft", "facebook", "amazon",
     "netflix", "dhl", "apple", "linkedin", "adobe",
-    "dropbox","instagram", "ebay", "google", "steam", "whatsapp",
+    "dropbox", "instagram", "ebay", "google", "steam", "whatsapp",
 }
 
+
 def evaluate():
-    print("Loading DINOv2 model and embeddings...")
+    print("Loading AUX DINOv2 matcher (extended crops + uniform filter)...")
     if not _load():
-        print("ERROR: Run scripts/init_brand_db_dino.py first.")
+        print("ERROR: brand_embeddings_dino_aux.pkl not found. "
+              "Run scripts/init_brand_db_dino_aux.py first.")
         sys.exit(1)
-    print("Model ready.\n")
+    print("AUX DINOv2 matcher ready.\n")
 
     per_brand = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0, "samples": 0})
-    all_similarities = []
+    all_sims = []
 
     brand_dirs = sorted(FILTERED_DIR.iterdir())
     total_brands = len(brand_dirs)
@@ -38,6 +44,7 @@ def evaluate():
     for b_idx, brand_dir in enumerate(brand_dirs):
         if not brand_dir.is_dir():
             continue
+
         brand_key = brand_dir.name
         sample_dirs = sorted(brand_dir.iterdir())
         n = len(sample_dirs)
@@ -47,14 +54,17 @@ def evaluate():
             shot = sample_dir / "shot.png"
             if not shot.exists():
                 continue
+
             per_brand[brand_key]["samples"] += 1
+
             try:
-                result = match_brand_dino(str(shot))
+                result = match_brand_dino_aux(str(shot))
             except Exception:
                 per_brand[brand_key]["fn"] += 1
                 continue
 
-            all_similarities.append(result["similarity"])
+            all_sims.append(result["similarity"])
+
             if result["matched"]:
                 if result["brand"] == brand_key:
                     per_brand[brand_key]["tp"] += 1
@@ -74,55 +84,55 @@ def evaluate():
     total_fn = sum(v["fn"] for v in per_brand.values())
     total_samples = sum(v["samples"] for v in per_brand.values())
 
-    precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0
-    recall    = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0
-    f1        = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
-    detection_rate = total_tp / total_samples if total_samples > 0 else 0
+    p = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0
+    r = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0
+    f1 = 2 * p * r / (p + r) if (p + r) > 0 else 0
 
     per_brand_metrics = {}
     for brand, v in sorted(per_brand.items(), key=lambda x: -x[1]["samples"]):
         tp, fp, fn = v["tp"], v["fp"], v["fn"]
-        p = tp / (tp + fp) if (tp + fp) > 0 else 0
-        r = tp / (tp + fn) if (tp + fn) > 0 else 0
-        f = 2 * p * r / (p + r) if (p + r) > 0 else 0
+        bp = tp / (tp + fp) if (tp + fp) > 0 else 0
+        br = tp / (tp + fn) if (tp + fn) > 0 else 0
+        bf = 2 * bp * br / (bp + br) if (bp + br) > 0 else 0
         per_brand_metrics[brand] = {
             "samples": v["samples"], "tp": tp, "fp": fp, "fn": fn,
-            "precision": round(p, 4), "recall": round(r, 4), "f1": round(f, 4),
+            "precision": round(bp, 4), "recall": round(br, 4), "f1": round(bf, 4),
             "representative": brand in REPRESENTATIVE_BRANDS,
         }
 
     results = {
-        "model": "DINOv2 (facebook/dinov2-base)",
-        "strategy": "multi-crop (top_150, top_300, top_500, mid_300)",
+        "model": "DINOv2 (facebook/dinov2-base) — AUX (9 crops + uniform filter)",
+        "strategy": "multi-crop with std-based uniform skip (threshold 12)",
         "dataset": "Phishpedia benchmark (Lin et al., USENIX Security 2021)",
         "total_samples": total_samples,
-        "threshold": 0.85,
+        "threshold": 0.80,
         "overall": {
             "tp": total_tp, "fp": total_fp, "fn": total_fn,
-            "precision": round(precision, 4),
-            "recall": round(recall, 4),
+            "precision": round(p, 4),
+            "recall": round(r, 4),
             "f1": round(f1, 4),
-            "detection_rate": round(detection_rate, 4),
+            "detection_rate": round(total_tp / total_samples if total_samples else 0, 4),
         },
         "similarity_stats": {
-            "mean": round(float(np.mean(all_similarities)), 4),
-            "std":  round(float(np.std(all_similarities)), 4),
+            "mean": round(float(np.mean(all_sims)), 4) if all_sims else 0,
+            "std":  round(float(np.std(all_sims)), 4) if all_sims else 0,
         },
         "per_brand": per_brand_metrics,
     }
 
-    out_path = RESULTS_DIR / "visual_evaluation_dino.json"
-    with open(out_path, "w", encoding="utf-8") as f:
+    out = RESULTS_DIR / "visual_evaluation_dino_aux.json"
+    with open(out, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
-    print(f"\n{'='*55}")
-    print(f"DINOV2 RESULTS ({total_samples} samples)")
-    print(f"{'='*55}")
-    print(f"  Precision      : {precision:.2%}")
-    print(f"  Recall         : {recall:.2%}")
-    print(f"  F1 Score       : {f1:.2%}")
-    print(f"  Detection Rate : {detection_rate:.2%}")
-    print(f"\nResults saved to: {out_path}")
+    print(f"\n{'='*60}")
+    print(f"AUX DINOv2 RESULTS ({total_samples} samples)")
+    print(f"{'='*60}")
+    print(f"  Precision : {p:.2%}")
+    print(f"  Recall    : {r:.2%}")
+    print(f"  F1        : {f1:.2%}")
+    print(f"\nResults written to: {out}")
+    print(f"Reference: backend/results/visual_evaluation_dino.json")
+
 
 if __name__ == "__main__":
     evaluate()
