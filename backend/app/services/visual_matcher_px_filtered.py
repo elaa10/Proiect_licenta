@@ -1,11 +1,13 @@
 """
-CLIP-based visual brand matcher — pixel-based multi-crop (PX strategy).
+PX+Filter visual matcher — pixel-based multi-crop (PX) with uniform-color
+filter (AUX-style, std < 12) applied at query time, matching references
+built by init_brand_db_px_filtered.py (filter applied at index time too).
 
-This is the final crop strategy selected after benchmarking against the
-Phishpedia dataset (Lin et al., USENIX Security 2021) — see thesis
-Section 4.4. Four full-width crops at fixed pixel offsets on a 1280x800
-capture, no uniform-color filter. F1=0.426 vs. F1=0.077 for the
-previously used proportional multi-crop strategy.
+Loads from /app/data/brand_embeddings_px_filtered.pkl.
+
+Public API:
+    is_px_filtered_available() -> bool
+    match_brand_px_filtered(screenshot_path, threshold=0.85) -> dict
 """
 import pickle
 import threading
@@ -17,9 +19,8 @@ import open_clip
 import torch
 from PIL import Image
 
-EMBEDDINGS_PATH = Path("/app/data/brand_embeddings_px.pkl")
+EMBEDDINGS_PATH = Path("/app/data/brand_embeddings_px_filtered.pkl")
 
-# Absolute pixel crops, full image width, for 1280x800 Playwright captures.
 CROP_STRATEGIES = [
     {"name": "top_150", "top": 0,   "bottom": 150},
     {"name": "top_300", "top": 0,   "bottom": 300},
@@ -27,8 +28,7 @@ CROP_STRATEGIES = [
     {"name": "mid_300", "top": 100, "bottom": 400},
 ]
 
-# Ambiguity guard: a match is accepted only when the top similarity exceeds
-# the threshold AND beats the runner-up brand by at least this margin.
+UNIFORM_STD_THRESHOLD = 12.0
 MIN_CONFIDENCE_MARGIN = 0.02
 
 _model = None
@@ -55,12 +55,20 @@ def _load() -> bool:
                 _embeddings = pickle.load(f)
             return True
         except Exception as e:
-            print(f"[visual_matcher] load error: {e}")
+            print(f"[visual_matcher_px_filtered] load error: {e}")
             return False
 
 
-def is_visual_available() -> bool:
+def is_px_filtered_available() -> bool:
     return EMBEDDINGS_PATH.exists()
+
+
+def _is_uniform(image: Image.Image) -> bool:
+    try:
+        arr = np.asarray(image.convert("L"), dtype=np.float32)
+        return float(arr.std()) < UNIFORM_STD_THRESHOLD
+    except Exception:
+        return True
 
 
 def _crop_pixels(img: Image.Image, top: int, bottom: int) -> Optional[Image.Image]:
@@ -83,17 +91,17 @@ def _embed_crop(crop: Image.Image) -> Optional[np.ndarray]:
         return None
 
 
-def _compute_query_embeddings(image_path: str) -> list[np.ndarray]:
+def _compute_query_embeddings(image_path: str) -> list:
     try:
         img = Image.open(image_path).convert("RGB")
     except Exception as e:
-        print(f"[visual_matcher] image load error: {e}")
+        print(f"[visual_matcher_px_filtered] image load error: {e}")
         return []
 
     embeddings = []
     for strategy in CROP_STRATEGIES:
         crop = _crop_pixels(img, top=strategy["top"], bottom=strategy["bottom"])
-        if crop is None:
+        if crop is None or _is_uniform(crop):
             continue
         emb = _embed_crop(crop)
         if emb is not None:
@@ -101,7 +109,7 @@ def _compute_query_embeddings(image_path: str) -> list[np.ndarray]:
     return embeddings
 
 
-def match_brand(screenshot_path: str, threshold: float = 0.85) -> dict:
+def match_brand_px_filtered(screenshot_path: str, threshold: float = 0.85) -> dict:
     no_match = {"matched": False, "brand": None, "display": None,
                 "similarity": 0.0, "label": None}
 
@@ -123,7 +131,6 @@ def match_brand(screenshot_path: str, threshold: float = 0.85) -> dict:
                 single = ref.get("embedding")
                 if single is not None:
                     ref_embeddings = [single]
-
             for ref_emb in ref_embeddings:
                 if ref_emb is None:
                     continue

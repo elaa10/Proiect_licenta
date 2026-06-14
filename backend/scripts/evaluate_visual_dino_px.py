@@ -1,10 +1,11 @@
 """
-AUX DINOv2 visual module evaluation on Phishpedia benchmark.
+DINO-PX visual module evaluation on Phishpedia benchmark.
 
-Goes in: backend/scripts/evaluate_visual_dino_aux.py
+Pixel-based multi-crop (top_150, top_300, top_500, mid_300), no uniform
+filter, using DINOv2 — DINO counterpart of the final CLIP-PX strategy,
+for the Cap. 4.4 model comparison.
 
-Output: backend/results/visual_evaluation_dino_aux.json
-Compare with: backend/results/visual_evaluation_dino.json (current dino model)
+Output: backend/results/visual_evaluation_dino_px.json
 """
 import json
 import sys
@@ -14,7 +15,7 @@ from collections import defaultdict
 import numpy as np
 
 sys.path.insert(0, "/app")
-from app.services.visual_matcher_dino_aux import match_brand_dino_aux, _load
+from app.services.visual_matcher_dino_px import match_brand_dino_px, _load
 
 FILTERED_DIR = Path("/app/evaluation/phishpedia_filtered")
 RESULTS_DIR  = Path("/app/results")
@@ -28,12 +29,12 @@ REPRESENTATIVE_BRANDS = {
 
 
 def evaluate():
-    print("Loading AUX DINOv2 matcher (extended crops + uniform filter)...")
+    print("Loading DINO-PX matcher (pixel-based multi-crop, no uniform filter)...")
     if not _load():
-        print("ERROR: brand_embeddings_dino_aux.pkl not found. "
-              "Run scripts/init_brand_db_dino_aux.py first.")
+        print("ERROR: brand_embeddings_dino_px.pkl not found. "
+              "Run scripts/init_brand_db_dino_px.py first.")
         sys.exit(1)
-    print("AUX DINOv2 matcher ready.\n")
+    print("DINO-PX matcher ready.\n")
 
     per_brand = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0, "samples": 0})
     all_sims = []
@@ -58,7 +59,7 @@ def evaluate():
             per_brand[brand_key]["samples"] += 1
 
             try:
-                result = match_brand_dino_aux(str(shot))
+                result = match_brand_dino_px(str(shot))
             except Exception:
                 per_brand[brand_key]["fn"] += 1
                 continue
@@ -84,8 +85,8 @@ def evaluate():
     total_fn = sum(v["fn"] for v in per_brand.values())
     total_samples = sum(v["samples"] for v in per_brand.values())
 
-    p = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0
-    r = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0
+    p  = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0
+    r  = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0
     f1 = 2 * p * r / (p + r) if (p + r) > 0 else 0
 
     per_brand_metrics = {}
@@ -96,42 +97,47 @@ def evaluate():
         bf = 2 * bp * br / (bp + br) if (bp + br) > 0 else 0
         per_brand_metrics[brand] = {
             "samples": v["samples"], "tp": tp, "fp": fp, "fn": fn,
-            "precision": round(bp, 4), "recall": round(br, 4), "f1": round(bf, 4),
+            "precision": round(bp, 4),
+            "recall":    round(br, 4),
+            "f1":        round(bf, 4),
             "representative": brand in REPRESENTATIVE_BRANDS,
         }
 
     results = {
-        "model": "DINOv2 (facebook/dinov2-base) — AUX (9 crops + uniform filter)",
-        "strategy": "multi-crop with std-based uniform skip (threshold 12)",
+        "model": "DINOv2 (facebook/dinov2-base) — PX (pixel-based multi-crop, no uniform filter)",
+        "strategy": "4 full-width pixel crops: top_150(0-150px), top_300(0-300px), "
+                    "top_500(0-500px), mid_300(100-400px) — no uniform-color filter",
         "dataset": "Phishpedia benchmark (Lin et al., USENIX Security 2021)",
         "total_samples": total_samples,
-        "threshold": 0.80,
+        "threshold": 0.85,
         "overall": {
             "tp": total_tp, "fp": total_fp, "fn": total_fn,
             "precision": round(p, 4),
-            "recall": round(r, 4),
-            "f1": round(f1, 4),
-            "detection_rate": round(total_tp / total_samples if total_samples else 0, 4),
+            "recall":    round(r, 4),
+            "f1":        round(f1, 4),
+            "detection_rate": round(
+                total_tp / total_samples if total_samples else 0, 4
+            ),
         },
         "similarity_stats": {
             "mean": round(float(np.mean(all_sims)), 4) if all_sims else 0,
-            "std":  round(float(np.std(all_sims)), 4) if all_sims else 0,
+            "std":  round(float(np.std(all_sims)),  4) if all_sims else 0,
         },
         "per_brand": per_brand_metrics,
     }
 
-    out = RESULTS_DIR / "visual_evaluation_dino_aux.json"
+    out = RESULTS_DIR / "visual_evaluation_dino_px.json"
     with open(out, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
     print(f"\n{'='*60}")
-    print(f"AUX DINOv2 RESULTS ({total_samples} samples)")
+    print(f"DINO-PX RESULTS ({total_samples} samples)")
     print(f"{'='*60}")
     print(f"  Precision : {p:.2%}")
     print(f"  Recall    : {r:.2%}")
     print(f"  F1        : {f1:.2%}")
     print(f"\nResults written to: {out}")
-    print(f"Reference: backend/results/visual_evaluation_dino.json")
+    print(f"Reference: backend/results/visual_evaluation_px.json (CLIP-PX)")
 
 
 if __name__ == "__main__":

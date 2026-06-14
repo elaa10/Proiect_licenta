@@ -1,11 +1,14 @@
 """
-CLIP-based visual brand matcher — pixel-based multi-crop (PX strategy).
+DINO-PX visual matcher — pixel-based multi-crop (PX strategy) with DINOv2.
 
-This is the final crop strategy selected after benchmarking against the
-Phishpedia dataset (Lin et al., USENIX Security 2021) — see thesis
-Section 4.4. Four full-width crops at fixed pixel offsets on a 1280x800
-capture, no uniform-color filter. F1=0.426 vs. F1=0.077 for the
-previously used proportional multi-crop strategy.
+Mirrors visual_matcher.py (CLIP-PX) but uses DINOv2 (facebook/dinov2-base)
+embeddings, for the final CLIP-vs-DINO comparison on the PX crop strategy.
+
+Loads from /app/data/brand_embeddings_dino_px.pkl.
+
+Public API:
+    is_dino_px_available() -> bool
+    match_brand_dino_px(screenshot_path, threshold=0.85) -> dict
 """
 import pickle
 import threading
@@ -13,13 +16,11 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
-import open_clip
 import torch
 from PIL import Image
 
-EMBEDDINGS_PATH = Path("/app/data/brand_embeddings_px.pkl")
+EMBEDDINGS_PATH = Path("/app/data/brand_embeddings_dino_px.pkl")
 
-# Absolute pixel crops, full image width, for 1280x800 Playwright captures.
 CROP_STRATEGIES = [
     {"name": "top_150", "top": 0,   "bottom": 150},
     {"name": "top_300", "top": 0,   "bottom": 300},
@@ -27,18 +28,16 @@ CROP_STRATEGIES = [
     {"name": "mid_300", "top": 100, "bottom": 400},
 ]
 
-# Ambiguity guard: a match is accepted only when the top similarity exceeds
-# the threshold AND beats the runner-up brand by at least this margin.
 MIN_CONFIDENCE_MARGIN = 0.02
 
 _model = None
-_preprocess = None
+_processor = None
 _embeddings: dict = {}
 _lock = threading.Lock()
 
 
 def _load() -> bool:
-    global _model, _preprocess, _embeddings
+    global _model, _processor, _embeddings
     if _model is not None:
         return True
     if not EMBEDDINGS_PATH.exists():
@@ -47,19 +46,19 @@ def _load() -> bool:
         if _model is not None:
             return True
         try:
-            _model, _, _preprocess = open_clip.create_model_and_transforms(
-                "ViT-B-32", pretrained="openai"
-            )
+            from transformers import AutoImageProcessor, AutoModel
+            _processor = AutoImageProcessor.from_pretrained("facebook/dinov2-base")
+            _model = AutoModel.from_pretrained("facebook/dinov2-base")
             _model.eval()
             with open(EMBEDDINGS_PATH, "rb") as f:
                 _embeddings = pickle.load(f)
             return True
         except Exception as e:
-            print(f"[visual_matcher] load error: {e}")
+            print(f"[visual_matcher_dino_px] load error: {e}")
             return False
 
 
-def is_visual_available() -> bool:
+def is_dino_px_available() -> bool:
     return EMBEDDINGS_PATH.exists()
 
 
@@ -74,20 +73,21 @@ def _crop_pixels(img: Image.Image, top: int, bottom: int) -> Optional[Image.Imag
 
 def _embed_crop(crop: Image.Image) -> Optional[np.ndarray]:
     try:
-        tensor = _preprocess(crop).unsqueeze(0)
+        inputs = _processor(images=crop, return_tensors="pt")
         with torch.no_grad():
-            emb = _model.encode_image(tensor)
+            outputs = _model(**inputs)
+            emb = outputs.last_hidden_state[:, 0, :]
             emb = emb / emb.norm(dim=-1, keepdim=True)
         return emb.squeeze().numpy()
     except Exception:
         return None
 
 
-def _compute_query_embeddings(image_path: str) -> list[np.ndarray]:
+def _compute_query_embeddings(image_path: str) -> list:
     try:
         img = Image.open(image_path).convert("RGB")
     except Exception as e:
-        print(f"[visual_matcher] image load error: {e}")
+        print(f"[visual_matcher_dino_px] image load error: {e}")
         return []
 
     embeddings = []
@@ -101,7 +101,7 @@ def _compute_query_embeddings(image_path: str) -> list[np.ndarray]:
     return embeddings
 
 
-def match_brand(screenshot_path: str, threshold: float = 0.85) -> dict:
+def match_brand_dino_px(screenshot_path: str, threshold: float = 0.85) -> dict:
     no_match = {"matched": False, "brand": None, "display": None,
                 "similarity": 0.0, "label": None}
 
@@ -123,7 +123,6 @@ def match_brand(screenshot_path: str, threshold: float = 0.85) -> dict:
                 single = ref.get("embedding")
                 if single is not None:
                     ref_embeddings = [single]
-
             for ref_emb in ref_embeddings:
                 if ref_emb is None:
                     continue

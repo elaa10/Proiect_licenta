@@ -384,7 +384,6 @@ export default function AnalyzePage() {
                 />
               </div>
             )}
-
           </div>
         )}
       </main>

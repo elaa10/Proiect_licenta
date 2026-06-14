@@ -11,6 +11,7 @@ from app.routers import auth, analyze
 from app.routers import analyze_visual_dino
 
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)

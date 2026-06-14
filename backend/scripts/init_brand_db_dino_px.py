@@ -1,28 +1,33 @@
 """
-AUX DINOv2 knowledge-base builder.
+DINO-PX knowledge-base builder — pixel-based multi-crop (PX strategy) with DINOv2.
 
-Goes in: backend/scripts/init_brand_db_dino_aux.py
+Reuses BRANDS and capture() from init_brand_db_dino.py (same screenshot set as
+visual_matcher_px.py). Crop strategy: top_150, top_300, top_500, mid_300
+(absolute pixel coordinates), no uniform-color filter — DINOv2 counterpart
+of visual_matcher_px.py, for the final CLIP-vs-DINO comparison (Cap. 4.4).
 
-Same as init_brand_db_aux.py but uses DINOv2 instead of CLIP.
-Writes to /app/data/brand_embeddings_dino_aux.pkl.
+Output: /app/data/brand_embeddings_dino_px.pkl
 """
 import asyncio
 import pickle
 import sys
 from pathlib import Path
 
-import numpy as np
 import torch
 from PIL import Image
 
 sys.path.insert(0, "/app")
 from scripts.init_brand_db_dino import BRANDS, capture  # noqa: E402
-from app.services.visual_matcher_dino_aux import (  # noqa: E402
-    CROP_STRATEGIES, UNIFORM_STD_THRESHOLD,
-)
 
 BRANDS_DIR = Path("/app/screenshots/brands")
-EMBEDDINGS_PATH = Path("/app/data/brand_embeddings_dino_aux.pkl")
+EMBEDDINGS_PATH = Path("/app/data/brand_embeddings_dino_px.pkl")
+
+CROP_STRATEGIES = [
+    {"name": "top_150", "top": 0,   "bottom": 150},
+    {"name": "top_300", "top": 0,   "bottom": 300},
+    {"name": "top_500", "top": 0,   "bottom": 500},
+    {"name": "mid_300", "top": 100, "bottom": 400},
+]
 
 
 def load_dino_model():
@@ -35,15 +40,7 @@ def load_dino_model():
     return model, processor
 
 
-def _is_uniform(image: Image.Image) -> bool:
-    try:
-        arr = np.asarray(image.convert("L"), dtype=np.float32)
-        return float(arr.std()) < UNIFORM_STD_THRESHOLD
-    except Exception:
-        return True
-
-
-def compute_multi_crop_embeddings(model, processor, image_path: str) -> list:
+def compute_embeddings(model, processor, image_path: str) -> list:
     try:
         img = Image.open(image_path).convert("RGB")
     except Exception as e:
@@ -51,22 +48,13 @@ def compute_multi_crop_embeddings(model, processor, image_path: str) -> list:
         return []
 
     w, h = img.size
-    kept, skipped_uniform = 0, 0
     embeddings = []
-
     for strategy in CROP_STRATEGIES:
-        left   = max(0, min(w, int(round(strategy["x1"] * w))))
-        top    = max(0, min(h, int(round(strategy["y1"] * h))))
-        right  = max(0, min(w, int(round(strategy["x2"] * w))))
-        bottom = max(0, min(h, int(round(strategy["y2"] * h))))
-        if right <= left or bottom <= top:
+        top = max(0, min(h, strategy["top"]))
+        bottom = max(0, min(h, strategy["bottom"]))
+        if bottom <= top:
             continue
-
-        crop = img.crop((left, top, right, bottom))
-        if _is_uniform(crop):
-            skipped_uniform += 1
-            continue
-
+        crop = img.crop((0, top, w, bottom))
         try:
             inputs = processor(images=crop, return_tensors="pt")
             with torch.no_grad():
@@ -74,11 +62,10 @@ def compute_multi_crop_embeddings(model, processor, image_path: str) -> list:
                 emb = outputs.last_hidden_state[:, 0, :]
                 emb = emb / emb.norm(dim=-1, keepdim=True)
             embeddings.append(emb.squeeze().numpy())
-            kept += 1
         except Exception:
             continue
 
-    print(f"    [crops] kept={kept}  skipped_uniform={skipped_uniform}")
+    print(f"    [crops] generated={len(embeddings)}")
     return embeddings
 
 
@@ -90,7 +77,7 @@ async def main():
     if EMBEDDINGS_PATH.exists():
         with open(EMBEDDINGS_PATH, "rb") as f:
             embeddings = pickle.load(f)
-        print(f"Resuming: {len(embeddings)} brands already in dino aux pkl\n")
+        print(f"Resuming: {len(embeddings)} brands already in dino-px pkl\n")
 
     model, processor = load_dino_model()
     total = len(BRANDS)
@@ -108,7 +95,7 @@ async def main():
         for ref in refs:
             label = ref["label"]
             if label in existing_labels:
-                print(f"  [{label}] skip")
+                print(f"  [{label}] skip — already indexed")
                 continue
 
             dest = BRANDS_DIR / f"{name}_{label}.png"
@@ -117,19 +104,19 @@ async def main():
                 await asyncio.sleep(2)
                 continue
 
-            embs = compute_multi_crop_embeddings(model, processor, str(dest))
-            if embs:
-                new_refs.append({
-                    "label": label,
-                    "url": ref["url"],
-                    "screenshot": str(dest),
-                    "embeddings": embs,
-                })
-                print(f"  [{label}] OK — {len(embs)} usable crop embeddings")
-                changed = True
-            else:
-                print(f"  [{label}] DROPPED — all crops were uniform")
+            embs = compute_embeddings(model, processor, str(dest))
+            if not embs:
+                print(f"  [{label}] FAIL — no embeddings generated")
+                continue
 
+            new_refs.append({
+                "label": label,
+                "url": ref["url"],
+                "screenshot": str(dest),
+                "embeddings": embs,
+            })
+            print(f"  [{label}] OK — {len(embs)} crop embeddings")
+            changed = True
             await asyncio.sleep(1)
 
         if changed or name not in embeddings:
@@ -141,14 +128,10 @@ async def main():
             with open(EMBEDDINGS_PATH, "wb") as f:
                 pickle.dump(embeddings, f)
 
+    processed = sum(1 for v in embeddings.values() if v["references"])
     total_refs = sum(len(v["references"]) for v in embeddings.values())
-    total_embs = sum(
-        sum(len(r.get("embeddings", [])) for r in v["references"])
-        for v in embeddings.values()
-    )
-    print(f"\nDone: {len(embeddings)} brands, {total_refs} references, "
-          f"{total_embs} usable embeddings")
-    print(f"Saved to: {EMBEDDINGS_PATH}")
+    print(f"\nDone: {processed}/{total} brands, {total_refs} total references")
+    print(f"Saved: {EMBEDDINGS_PATH}")
 
 
 if __name__ == "__main__":
