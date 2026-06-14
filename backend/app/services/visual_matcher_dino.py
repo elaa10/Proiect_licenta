@@ -1,3 +1,13 @@
+"""
+DINOv2-based visual brand matcher — pixel-based multi-crop with uniform-color
+filter (PX+Filter strategy).
+
+DINOv2 counterpart of visual_matcher.py (CLIP PX+Filter), same crop geometry
+and filter, adopted for consistency between the two selectable visual models
+(see thesis Section 3.4.3 / 4.4).
+
+Loads from /app/data/brand_embeddings_dino_px_filtered.pkl.
+"""
 import pickle
 import threading
 from pathlib import Path
@@ -7,22 +17,16 @@ import numpy as np
 import torch
 from PIL import Image
 
-EMBEDDINGS_PATH_DINO = Path("/app/data/brand_embeddings_dino.pkl")
+EMBEDDINGS_PATH = Path("/app/data/brand_embeddings_dino_px_filtered.pkl")
 
-# Proportional crop strategies (coordinates relative to image dimensions).
-# MUST match the strategy list used in init_brand_db_dino.py.
-#
-# Note: a narrow top strip (e.g. 0-15% of height) was evaluated but excluded
-# because it produced saturated embeddings on pages with uniform white regions
-# in the header area, causing multiple unrelated brands to score near 1.0 and
-# eliminating the runner-up margin.
 CROP_STRATEGIES = [
-    {"name": "logo_left",    "x1": 0.00, "y1": 0.00, "x2": 0.35, "y2": 0.30},
-    {"name": "logo_center",  "x1": 0.25, "y1": 0.00, "x2": 0.75, "y2": 0.35},
-    {"name": "upper_third",  "x1": 0.00, "y1": 0.00, "x2": 1.00, "y2": 0.35},
-    {"name": "center_band",  "x1": 0.00, "y1": 0.20, "x2": 1.00, "y2": 0.65},
+    {"name": "top_150", "top": 0,   "bottom": 150},
+    {"name": "top_300", "top": 0,   "bottom": 300},
+    {"name": "top_500", "top": 0,   "bottom": 500},
+    {"name": "mid_300", "top": 100, "bottom": 400},
 ]
 
+UNIFORM_STD_THRESHOLD = 12.0
 MIN_CONFIDENCE_MARGIN = 0.02
 
 _model = None
@@ -35,7 +39,7 @@ def _load() -> bool:
     global _model, _processor, _embeddings
     if _model is not None:
         return True
-    if not EMBEDDINGS_PATH_DINO.exists():
+    if not EMBEDDINGS_PATH.exists():
         return False
     with _lock:
         if _model is not None:
@@ -45,7 +49,7 @@ def _load() -> bool:
             _processor = AutoImageProcessor.from_pretrained("facebook/dinov2-base")
             _model = AutoModel.from_pretrained("facebook/dinov2-base")
             _model.eval()
-            with open(EMBEDDINGS_PATH_DINO, "rb") as f:
+            with open(EMBEDDINGS_PATH, "rb") as f:
                 _embeddings = pickle.load(f)
             return True
         except Exception as e:
@@ -54,24 +58,24 @@ def _load() -> bool:
 
 
 def is_dino_available() -> bool:
-    return EMBEDDINGS_PATH_DINO.exists()
+    return EMBEDDINGS_PATH.exists()
 
 
-def _crop_proportional(
-    img: Image.Image,
-    x1: float,
-    y1: float,
-    x2: float,
-    y2: float,
-) -> Optional[Image.Image]:
+def _is_uniform(image: Image.Image) -> bool:
+    try:
+        arr = np.asarray(image.convert("L"), dtype=np.float32)
+        return float(arr.std()) < UNIFORM_STD_THRESHOLD
+    except Exception:
+        return True
+
+
+def _crop_pixels(img: Image.Image, top: int, bottom: int) -> Optional[Image.Image]:
     w, h = img.size
-    left   = max(0, min(w, int(round(x1 * w))))
-    top    = max(0, min(h, int(round(y1 * h))))
-    right  = max(0, min(w, int(round(x2 * w))))
-    bottom = max(0, min(h, int(round(y2 * h))))
-    if right <= left or bottom <= top:
+    top = max(0, min(h, top))
+    bottom = max(0, min(h, bottom))
+    if bottom <= top:
         return None
-    return img.crop((left, top, right, bottom))
+    return img.crop((0, top, w, bottom))
 
 
 def _embed_crop(crop: Image.Image) -> Optional[np.ndarray]:
@@ -79,7 +83,7 @@ def _embed_crop(crop: Image.Image) -> Optional[np.ndarray]:
         inputs = _processor(images=crop, return_tensors="pt")
         with torch.no_grad():
             outputs = _model(**inputs)
-            emb = outputs.last_hidden_state[:, 0, :]  # CLS token
+            emb = outputs.last_hidden_state[:, 0, :]
             emb = emb / emb.norm(dim=-1, keepdim=True)
         return emb.squeeze().numpy()
     except Exception:
@@ -95,12 +99,8 @@ def _compute_query_embeddings(image_path: str) -> list:
 
     embeddings = []
     for strategy in CROP_STRATEGIES:
-        crop = _crop_proportional(
-            img,
-            x1=strategy["x1"], y1=strategy["y1"],
-            x2=strategy["x2"], y2=strategy["y2"],
-        )
-        if crop is None:
+        crop = _crop_pixels(img, top=strategy["top"], bottom=strategy["bottom"])
+        if crop is None or _is_uniform(crop):
             continue
         emb = _embed_crop(crop)
         if emb is not None:
@@ -130,7 +130,6 @@ def match_brand_dino(screenshot_path: str, threshold: float = 0.85) -> dict:
                 single = ref.get("embedding")
                 if single is not None:
                     ref_embeddings = [single]
-
             for ref_emb in ref_embeddings:
                 if ref_emb is None:
                     continue

@@ -1,144 +1,49 @@
-"""
-DINO-PX visual module evaluation on Phishpedia benchmark.
-
-Pixel-based multi-crop (top_150, top_300, top_500, mid_300), no uniform
-filter, using DINOv2 — DINO counterpart of the final CLIP-PX strategy,
-for the Cap. 4.4 model comparison.
-
-Output: backend/results/visual_evaluation_dino_px.json
-"""
 import json
-import sys
 from pathlib import Path
-from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor
+from app.services.visual_matcher_dino_px_filtered import match_brand_dino_px_filtered, _load
 
-import numpy as np
+# 1. Inițializator: rulează O SINGURĂ DATĂ când pornește fiecare proces nou
+def init_worker():
+    _load()
 
-sys.path.insert(0, "/app")
-from app.services.visual_matcher_dino_px import match_brand_dino_px, _load
-
-FILTERED_DIR = Path("/app/evaluation/phishpedia_filtered")
-RESULTS_DIR  = Path("/app/results")
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-
-REPRESENTATIVE_BRANDS = {
-    "paypal", "ing", "microsoft", "facebook", "amazon",
-    "netflix", "dhl", "apple", "linkedin", "adobe",
-    "dropbox", "instagram", "ebay", "google", "steam", "whatsapp",
-}
-
+# 2. Funcția de procesare pentru un singur brand
+def process_single_brand(brand_dir):
+    brand_key = brand_dir.name
+    results = {"tp": 0, "fp": 0, "fn": 0, "samples": 0}
+    
+    sample_dirs = [d for d in brand_dir.iterdir() if d.is_dir()]
+    for sample_dir in sample_dirs:
+        shot = sample_dir / "shot.png"
+        if not shot.exists(): continue
+        
+        results["samples"] += 1
+        try:
+            # Modelul este deja încărcat în memorie datorită init_worker
+            res = match_brand_dino_px_filtered(str(shot))
+            if res["matched"]:
+                if res["brand"] == brand_key: results["tp"] += 1
+                else: results["fp"] += 1
+            else: results["fn"] += 1
+        except Exception:
+            results["fn"] += 1
+    return brand_key, results
 
 def evaluate():
-    print("Loading DINO-PX matcher (pixel-based multi-crop, no uniform filter)...")
-    if not _load():
-        print("ERROR: brand_embeddings_dino_px.pkl not found. "
-              "Run scripts/init_brand_db_dino_px.py first.")
-        sys.exit(1)
-    print("DINO-PX matcher ready.\n")
+    base_path = Path("/app/evaluation/phishpedia_filtered")
+    brand_dirs = [d for d in base_path.iterdir() if d.is_dir()]
+    
+    # 3. Folosește Pool-ul. Ajustează max_workers în funcție de RAM-ul tău!
+    # Dacă ai 16GB RAM, încearcă 2 sau 3.
+    with ProcessPoolExecutor(max_workers=2, initializer=init_worker) as executor:
+        print(f"Începem evaluarea pentru {len(brand_dirs)} branduri...")
+        final_results = dict(executor.map(process_single_brand, brand_dirs))
 
-    per_brand = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0, "samples": 0})
-    all_sims = []
-
-    brand_dirs = sorted(FILTERED_DIR.iterdir())
-    total_brands = len(brand_dirs)
-
-    for b_idx, brand_dir in enumerate(brand_dirs):
-        if not brand_dir.is_dir():
-            continue
-
-        brand_key = brand_dir.name
-        sample_dirs = sorted(brand_dir.iterdir())
-        n = len(sample_dirs)
-        print(f"[{b_idx+1:02d}/{total_brands}] {brand_key:25s} ({n} samples)")
-
-        for sample_dir in sample_dirs:
-            shot = sample_dir / "shot.png"
-            if not shot.exists():
-                continue
-
-            per_brand[brand_key]["samples"] += 1
-
-            try:
-                result = match_brand_dino_px(str(shot))
-            except Exception:
-                per_brand[brand_key]["fn"] += 1
-                continue
-
-            all_sims.append(result["similarity"])
-
-            if result["matched"]:
-                if result["brand"] == brand_key:
-                    per_brand[brand_key]["tp"] += 1
-                else:
-                    per_brand[brand_key]["fp"] += 1
-            else:
-                per_brand[brand_key]["fn"] += 1
-
-        tp = per_brand[brand_key]["tp"]
-        fn = per_brand[brand_key]["fn"]
-        fp = per_brand[brand_key]["fp"]
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-        print(f"         TP={tp} FN={fn} FP={fp} recall={recall:.2%}")
-
-    total_tp = sum(v["tp"] for v in per_brand.values())
-    total_fp = sum(v["fp"] for v in per_brand.values())
-    total_fn = sum(v["fn"] for v in per_brand.values())
-    total_samples = sum(v["samples"] for v in per_brand.values())
-
-    p  = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0
-    r  = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0
-    f1 = 2 * p * r / (p + r) if (p + r) > 0 else 0
-
-    per_brand_metrics = {}
-    for brand, v in sorted(per_brand.items(), key=lambda x: -x[1]["samples"]):
-        tp, fp, fn = v["tp"], v["fp"], v["fn"]
-        bp = tp / (tp + fp) if (tp + fp) > 0 else 0
-        br = tp / (tp + fn) if (tp + fn) > 0 else 0
-        bf = 2 * bp * br / (bp + br) if (bp + br) > 0 else 0
-        per_brand_metrics[brand] = {
-            "samples": v["samples"], "tp": tp, "fp": fp, "fn": fn,
-            "precision": round(bp, 4),
-            "recall":    round(br, 4),
-            "f1":        round(bf, 4),
-            "representative": brand in REPRESENTATIVE_BRANDS,
-        }
-
-    results = {
-        "model": "DINOv2 (facebook/dinov2-base) — PX (pixel-based multi-crop, no uniform filter)",
-        "strategy": "4 full-width pixel crops: top_150(0-150px), top_300(0-300px), "
-                    "top_500(0-500px), mid_300(100-400px) — no uniform-color filter",
-        "dataset": "Phishpedia benchmark (Lin et al., USENIX Security 2021)",
-        "total_samples": total_samples,
-        "threshold": 0.85,
-        "overall": {
-            "tp": total_tp, "fp": total_fp, "fn": total_fn,
-            "precision": round(p, 4),
-            "recall":    round(r, 4),
-            "f1":        round(f1, 4),
-            "detection_rate": round(
-                total_tp / total_samples if total_samples else 0, 4
-            ),
-        },
-        "similarity_stats": {
-            "mean": round(float(np.mean(all_sims)), 4) if all_sims else 0,
-            "std":  round(float(np.std(all_sims)),  4) if all_sims else 0,
-        },
-        "per_brand": per_brand_metrics,
-    }
-
-    out = RESULTS_DIR / "visual_evaluation_dino_px.json"
-    with open(out, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
-
-    print(f"\n{'='*60}")
-    print(f"DINO-PX RESULTS ({total_samples} samples)")
-    print(f"{'='*60}")
-    print(f"  Precision : {p:.2%}")
-    print(f"  Recall    : {r:.2%}")
-    print(f"  F1        : {f1:.2%}")
-    print(f"\nResults written to: {out}")
-    print(f"Reference: backend/results/visual_evaluation_px.json (CLIP-PX)")
-
+    # 4. Agregare rezultate
+    output_path = Path("/app/backend/results/visual_evaluation_dino_px_filtered.json")
+    with open(output_path, "w") as f:
+        json.dump(final_results, f, indent=4)
+    print(f"Gata! Rezultate salvate în {output_path}")
 
 if __name__ == "__main__":
     evaluate()
