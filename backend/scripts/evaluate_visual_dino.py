@@ -1,7 +1,4 @@
-"""
-DINOv2 visual module evaluation on Phishpedia benchmark.
-Output: backend/results/visual_evaluation_dino.json
-"""
+
 import json
 import sys
 from pathlib import Path

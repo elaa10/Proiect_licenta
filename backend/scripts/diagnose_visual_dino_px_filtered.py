@@ -1,10 +1,4 @@
-"""
-Diagnostic script — DINO-PX+Filter, live captures.
-Checks whether the crop_0 (top_150) embedding-collapse phenomenon observed
-with CLIP (Section 4.4) also occurs with DINOv2.
 
-Usage: python scripts/diagnose_visual_dino_px_filtered.py <URL> [<URL2> ...]
-"""
 import asyncio
 import sys
 from pathlib import Path

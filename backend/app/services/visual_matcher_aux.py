@@ -1,22 +1,3 @@
-"""
-AUX CLIP visual matcher — experimental variant for thesis evaluation.
-
-Goes in: backend/app/services/visual_matcher_aux.py
-
-Differences from visual_matcher.py:
-  1. Uniform-color filter (`_is_uniform`): crops with grayscale-pixel std < 12
-     are skipped at BOTH indexing and inference time. This prevents saturated
-     embeddings on white/uniform regions (the issue documented in the
-     original visual_matcher.py header comment).
-  2. Extended crop list: 4 original + 5 new tighter crops. Same coordinate
-     system as before (proportional). The new strategies are now safe because
-     the uniform filter removes the saturation problem.
-  3. Loads from /app/data/brand_embeddings_aux.pkl — separate from the main pkl.
-
-Public API mirrors visual_matcher.py:
-    - is_aux_available() -> bool
-    - match_brand_aux(screenshot_path, threshold=0.85) -> dict
-"""
 import pickle
 import threading
 from pathlib import Path
@@ -29,10 +10,6 @@ from PIL import Image
 
 EMBEDDINGS_PATH = Path("/app/data/brand_embeddings_aux.pkl")
 
-# Proportional crop strategies. The first 4 are identical to visual_matcher.py
-# (preserved for backward continuity). The next 5 are new — they focus on the
-# specific regions where logos actually appear, as observed in the Phishpedia
-# screenshot samples (see thesis Section 4.4).
 CROP_STRATEGIES = [
     # ── Originals ──────────────────────────────────────────────────────────
     {"name": "logo_left",          "x1": 0.00, "y1": 0.00, "x2": 0.35, "y2": 0.30},
@@ -47,14 +24,8 @@ CROP_STRATEGIES = [
     {"name": "logo_mid_center",    "x1": 0.25, "y1": 0.15, "x2": 0.75, "y2": 0.45},
 ]
 
-# Std-dev threshold (grayscale, 0-255). Crops with lower variance are
-# considered uniform background and skipped. Calibrated empirically:
-#   - real logos have std > 30
-#   - pure white pages: std < 5
-#   - white pages with one small grey UI element: std ≈ 8-10
 UNIFORM_STD_THRESHOLD = 12.0
 
-# Same confidence margin as the main matcher, kept for fair comparison.
 MIN_CONFIDENCE_MARGIN = 0.02
 
 _model = None
@@ -90,12 +61,10 @@ def is_aux_available() -> bool:
 
 
 def _is_uniform(image: Image.Image, threshold: float = UNIFORM_STD_THRESHOLD) -> bool:
-    """True if the crop has too little pixel variation (mostly one color)."""
     try:
         arr = np.asarray(image.convert("L"), dtype=np.float32)
         return float(arr.std()) < threshold
     except Exception:
-        # If we can't compute std, treat as uniform (safer to skip).
         return True
 
 
@@ -157,8 +126,6 @@ def match_brand_aux(screenshot_path: str, threshold: float = 0.85) -> dict:
 
     query_embeddings = _compute_query_embeddings(screenshot_path)
     if not query_embeddings:
-        # Every crop was uniform — the page is empty / cloaked / failed to
-        # render. Reject the match instead of returning a misleading top-1.
         return no_match
 
     per_brand_best: dict[str, dict] = {}

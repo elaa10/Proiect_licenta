@@ -1,14 +1,4 @@
-"""
-PX+Filter visual matcher — pixel-based multi-crop (PX) with uniform-color
-filter (AUX-style, std < 12) applied at query time, matching references
-built by init_brand_db_px_filtered.py (filter applied at index time too).
 
-Loads from /app/data/brand_embeddings_px_filtered.pkl.
-
-Public API:
-    is_px_filtered_available() -> bool
-    match_brand_px_filtered(screenshot_path, threshold=0.85) -> dict
-"""
 import pickle
 import threading
 from pathlib import Path

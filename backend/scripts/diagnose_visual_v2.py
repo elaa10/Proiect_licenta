@@ -1,9 +1,4 @@
-"""
-Diagnostic script v2 — shows per-crop, per-strategy similarity breakdown.
-Helps identify which specific crop is causing saturation across brands.
 
-Usage: python scripts/diagnose_visual_v2.py <URL>
-"""
 import asyncio
 import sys
 from pathlib import Path
@@ -40,14 +35,12 @@ async def diagnose(url: str) -> None:
 
     print(f"    Crops: {len(query_embeds)} -- {strategy_names}")
 
-    # For each query crop, find top brand
     print(f"\n{'='*70}")
     print(f"PER-CROP SIMILARITY (which crop matches which brand?)")
     print(f"{'='*70}")
 
     for crop_idx, q_emb in enumerate(query_embeds):
         crop_name = strategy_names[crop_idx]
-        # Compute similarity to all brand references for THIS crop only
         scores = {}
         for brand, data in embeddings_db.items():
             best = -1.0
@@ -68,7 +61,6 @@ async def diagnose(url: str) -> None:
         for brand, sim in top5:
             print(f"    {brand:<20} {sim:.4f}")
 
-    # Aggregate (current behavior)
     print(f"\n{'='*70}")
     print(f"AGGREGATE (max across all crops, current matcher behavior)")
     print(f"{'='*70}")

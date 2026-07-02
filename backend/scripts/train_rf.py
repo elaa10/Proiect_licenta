@@ -1,22 +1,3 @@
-"""
-Random Forest training si evaluare pentru detectia URL-urilor de phishing.
-
-Modificari fata de versiunea anterioara:
-  - Dataset principal: PhiUSIIL (UCI, 2024) — URL-urile au scheme http(s)://
-    si reprezinta distributia reala a inputului utilizatorului.
-  - Label map invers: in PhiUSIIL, label=1 = legitimate, label=0 = phishing.
-  - Evaluare OOD optionala pe GramBeddings sau Kaggle vechi.
-
-Produce:
-    - /app/models/rf_model.joblib     modelul antrenat (final)
-    - /app/results/rf_evaluation.json metrici complete pentru Cap. 4.5
-
-Utilizare (in containerul backend):
-    MSYS_NO_PATHCONV=1 docker exec -it proiect_licenta-backend-1 \\
-        python scripts/train_rf.py \\
-        --csv /app/data/PhiUSIIL_Phishing_URL_Dataset.csv \\
-        --sample 150000
-"""
 
 import argparse
 import json
@@ -57,16 +38,6 @@ FEATURE_ORDER = [
 
 
 def load_dataset(csv_path: str, sample: int | None) -> pd.DataFrame:
-    """
-    Incarca un dataset de URL-uri si normalizeaza coloanele la (url, y).
-
-    Detecteaza automat schema labelului:
-      - Coloana 'y' (sau 'Y'): format intern, y=1 = phishing. Nu reinterpreteaza.
-      - PhiUSIIL: label=1 -> legitimate (y=0), label=0 -> phishing (y=1)
-      - Kaggle:   Label='bad' -> phishing (y=1), Label='good' -> legitimate (y=0)
-
-    Pentru proiectul nostru, conventia interna este y=1 pentru phishing.
-    """
     print(f"[load] Reading {csv_path} ...")
     df = pd.read_csv(csv_path)
 
@@ -79,7 +50,6 @@ def load_dataset(csv_path: str, sample: int | None) -> pd.DataFrame:
         raise ValueError(f"Cannot detect URL column. Found: {list(df.columns)}")
 
     if y_col is not None:
-        # Format intern: y=1 = phishing. Folosim direct, fara reinterpretare.
         print("[load] Detected internal schema (column 'y'): y=1 means phishing")
         df = df[[url_col, y_col]].dropna()
         df.columns = ["url", "y"]
@@ -302,7 +272,6 @@ def main():
         "elapsed_seconds": elapsed,
     }
 
-    # Evaluare optionala out-of-distribution
     if args.oob_csv and os.path.exists(args.oob_csv):
         print(f"\n[oob] Evaluating on out-of-distribution dataset: {args.oob_csv}")
         try:

@@ -78,7 +78,6 @@ def _extract_host(url: str) -> str:
 
 
 def is_official_domain(url: str, brand: str) -> bool:
-    """Return True if the URL's host is an official domain for this brand."""
     host = _extract_host(url)
     if not host:
         return False

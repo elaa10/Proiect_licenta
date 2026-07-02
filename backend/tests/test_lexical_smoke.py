@@ -1,17 +1,6 @@
-"""
-Smoke tests for the lexical URL detector.
-
-Run from inside the backend container:
-    docker exec -it proiect_licenta-backend-1 python -m tests.test_lexical_smoke
-"""
 
 from app.services.url_analyzer import extract_features, compute_lexical_score
 
-
-# ── SCORING TESTS ─────────────────────────────────────────────────────────────
-# "safe" → score < 0.20
-# "mid"  → 0.20 ≤ score < 0.65
-# "high" → score ≥ 0.40
 
 SCORING_TESTS = [
     # Legitimate URLs — must score below the safe threshold
@@ -47,7 +36,6 @@ SCORING_TESTS = [
 ]
 
 
-# ── FEATURE UNIT TESTS ────────────────────────────────────────────────────────
 
 FEATURE_TESTS = [
     # url_length (https://www.google.com = 22 chars)
@@ -128,8 +116,6 @@ FEATURE_TESTS = [
     ("https://www.bcr.ro",         "has_confusable_chars", 0, "no confusable characters"),
 ]
 
-
-# ── TEST RUNNER ───────────────────────────────────────────────────────────────
 
 def run_scoring_tests():
     print("\n" + "="*90)

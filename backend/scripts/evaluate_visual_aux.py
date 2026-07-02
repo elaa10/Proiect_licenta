@@ -1,11 +1,4 @@
-"""
-AUX CLIP visual module evaluation on Phishpedia benchmark.
 
-Goes in: backend/scripts/evaluate_visual_aux.py
-
-Output: backend/results/visual_evaluation_aux.json
-Compare with: backend/results/visual_evaluation_multicrop.json (current model)
-"""
 import json
 import sys
 from pathlib import Path

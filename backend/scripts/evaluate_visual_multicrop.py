@@ -1,7 +1,4 @@
-"""
-Visual module evaluation — multi-crop strategy.
-Saves to backend/results/visual_evaluation_multicrop.json
-"""
+
 import json
 import sys
 from pathlib import Path

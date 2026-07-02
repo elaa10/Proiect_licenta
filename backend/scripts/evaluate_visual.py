@@ -1,9 +1,4 @@
-"""
-Visual module evaluation on Phishpedia benchmark dataset.
-Runs match_brand() on static screenshots — no live URL capture needed.
 
-Output: backend/results/visual_evaluation.json
-"""
 import json
 import pickle
 import sys
@@ -20,7 +15,7 @@ FILTERED_DIR = Path("/app/evaluation/phishpedia_filtered")
 RESULTS_DIR  = Path("/app/results")
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# Branduri cu >= 100 samples — metrici de incredere statistica
+
 REPRESENTATIVE_BRANDS = {
     "paypal", "ing", "microsoft", "facebook", "amazon",
     "netflix", "dhl", "apple", "linkedin", "adobe",
@@ -69,14 +64,11 @@ def evaluate():
 
             if result["matched"]:
                 if result["brand"] == brand_key:
-                    # Correct detection + correct brand identification
                     per_brand[brand_key]["tp"] += 1
                     per_brand[brand_key]["correct_brand"] += 1
                 else:
-                    # Detected but wrong brand
                     per_brand[brand_key]["fp"] += 1
             else:
-                # Not detected (false negative)
                 per_brand[brand_key]["fn"] += 1
 
         tp = per_brand[brand_key]["tp"]
@@ -85,7 +77,6 @@ def evaluate():
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
         print(f"         TP={tp} FN={fn} FP={fp} recall={recall:.2%}")
 
-    # Metrici agregate
     total_tp = sum(v["tp"] for v in per_brand.values())
     total_fp = sum(v["fp"] for v in per_brand.values())
     total_fn = sum(v["fn"] for v in per_brand.values())
@@ -96,7 +87,6 @@ def evaluate():
     f1        = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
     detection_rate = total_tp / total_samples if total_samples > 0 else 0
 
-    # Metrici doar pe branduri reprezentative
     rep_tp = sum(v["tp"] for k, v in per_brand.items() if k in REPRESENTATIVE_BRANDS)
     rep_fp = sum(v["fp"] for k, v in per_brand.items() if k in REPRESENTATIVE_BRANDS)
     rep_fn = sum(v["fn"] for k, v in per_brand.items() if k in REPRESENTATIVE_BRANDS)
@@ -105,7 +95,6 @@ def evaluate():
     rep_recall    = rep_tp / (rep_tp + rep_fn) if (rep_tp + rep_fn) > 0 else 0
     rep_f1        = 2 * rep_precision * rep_recall / (rep_precision + rep_recall) if (rep_precision + rep_recall) > 0 else 0
 
-    # Per-brand metrics
     per_brand_metrics = {}
     for brand, v in sorted(per_brand.items(), key=lambda x: -x[1]["samples"]):
         tp, fp, fn = v["tp"], v["fp"], v["fn"]

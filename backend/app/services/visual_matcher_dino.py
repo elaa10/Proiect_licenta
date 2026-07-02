@@ -1,13 +1,4 @@
-"""
-DINOv2-based visual brand matcher — pixel-based multi-crop with uniform-color
-filter (PX+Filter strategy).
 
-DINOv2 counterpart of visual_matcher.py (CLIP PX+Filter), same crop geometry
-and filter, adopted for consistency between the two selectable visual models
-(see thesis Section 3.4.3 / 4.4).
-
-Loads from /app/data/brand_embeddings_dino_px_filtered.pkl.
-"""
 import pickle
 import threading
 from pathlib import Path

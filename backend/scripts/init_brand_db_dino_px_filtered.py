@@ -1,15 +1,4 @@
-"""
-DINO-PX+Filter knowledge-base builder.
 
-Combines the PX crop geometry (top_150, top_300, top_500, mid_300, absolute
-pixel coordinates) with the uniform-color filter (grayscale std < 12),
-applied at indexing time, using DINOv2 (facebook/dinov2-base).
-
-Reuses BRANDS and capture() from init_brand_db_dino.py — same screenshot set
-as DINO-PX, no new Playwright captures needed.
-
-Output: /app/data/brand_embeddings_dino_px_filtered.pkl
-"""
 import asyncio
 import pickle
 import sys

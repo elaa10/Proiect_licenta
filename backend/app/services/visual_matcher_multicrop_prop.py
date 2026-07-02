@@ -10,14 +10,6 @@ from PIL import Image
 
 EMBEDDINGS_PATH = Path("/app/data/brand_embeddings.pkl")
 
-# Proportional crop strategies (coordinates relative to image dimensions).
-# Combines logo-focused crops (precision) with broader regions (recall).
-# The same strategy list MUST be used in init_brand_db.py at reference build time.
-#
-# Note: a narrow top strip (e.g. 0-15% of height) was evaluated but excluded
-# because it produced saturated embeddings on pages with uniform white regions
-# in the header area, causing multiple unrelated brands to score near 1.0 and
-# eliminating the runner-up margin.
 CROP_STRATEGIES = [
     {"name": "logo_left",    "x1": 0.00, "y1": 0.00, "x2": 0.35, "y2": 0.30},
     {"name": "logo_center",  "x1": 0.25, "y1": 0.00, "x2": 0.75, "y2": 0.35},
@@ -25,8 +17,7 @@ CROP_STRATEGIES = [
     {"name": "center_band",  "x1": 0.00, "y1": 0.20, "x2": 1.00, "y2": 0.65},
 ]
 
-# Ambiguity guard: a match is accepted only when the top similarity exceeds
-# the threshold AND beats the runner-up brand by at least this margin.
+
 MIN_CONFIDENCE_MARGIN = 0.02
 
 _model = None

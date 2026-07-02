@@ -3,11 +3,9 @@ from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from app.services.visual_matcher_dino_px_filtered import match_brand_dino_px_filtered, _load
 
-# 1. Inițializator: rulează O SINGURĂ DATĂ când pornește fiecare proces nou
 def init_worker():
     _load()
 
-# 2. Funcția de procesare pentru un singur brand
 def process_single_brand(brand_dir):
     brand_key = brand_dir.name
     results = {"tp": 0, "fp": 0, "fn": 0, "samples": 0}
@@ -19,7 +17,6 @@ def process_single_brand(brand_dir):
         
         results["samples"] += 1
         try:
-            # Modelul este deja încărcat în memorie datorită init_worker
             res = match_brand_dino_px_filtered(str(shot))
             if res["matched"]:
                 if res["brand"] == brand_key: results["tp"] += 1
@@ -33,13 +30,10 @@ def evaluate():
     base_path = Path("/app/evaluation/phishpedia_filtered")
     brand_dirs = [d for d in base_path.iterdir() if d.is_dir()]
     
-    # 3. Folosește Pool-ul. Ajustează max_workers în funcție de RAM-ul tău!
-    # Dacă ai 16GB RAM, încearcă 2 sau 3.
     with ProcessPoolExecutor(max_workers=2, initializer=init_worker) as executor:
         print(f"Începem evaluarea pentru {len(brand_dirs)} branduri...")
         final_results = dict(executor.map(process_single_brand, brand_dirs))
 
-    # 4. Agregare rezultate
     output_path = Path("/app/backend/results/visual_evaluation_dino_px_filtered.json")
     with open(output_path, "w") as f:
         json.dump(final_results, f, indent=4)

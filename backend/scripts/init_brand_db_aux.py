@@ -1,17 +1,4 @@
-"""
-AUX CLIP knowledge-base builder.
 
-Goes in: backend/scripts/init_brand_db_aux.py
-
-Reuses BRANDS and capture() from the original init_brand_db.py — same brand
-list, same Playwright capture logic, same screenshots dir. The only changes:
-  - Uses CROP_STRATEGIES and UNIFORM_STD_THRESHOLD from visual_matcher_aux.
-  - Skips crops that fail the uniform-color filter at indexing time.
-  - Writes to /app/data/brand_embeddings_aux.pkl (separate from main pkl).
-
-Run inside the backend container:
-    python scripts/init_brand_db_aux.py
-"""
 import asyncio
 import pickle
 import sys
@@ -118,7 +105,6 @@ async def main():
                 print(f"  [{label}] skip — already in aux pkl")
                 continue
 
-            # Reuse the screenshot saved by the main init_brand_db.py if present.
             dest = BRANDS_DIR / f"{name}_{label}.png"
             ok = await capture(ref["url"], dest)
             if not ok:

@@ -1,5 +1,3 @@
-"""Random Forest inference service for phishing URL detection."""
-
 import os
 from threading import Lock
 from typing import Optional
@@ -17,7 +15,6 @@ _lock = Lock()
 
 
 def _load_model() -> None:
-    """Lazy-load the trained model on first request."""
     global _model, _feature_order
     with _lock:
         if _model is not None:
@@ -37,11 +34,6 @@ def is_model_available() -> bool:
 
 
 def predict_ml_score(url: str) -> dict:
-    """Return phishing probability for a single URL.
-
-    Returns:
-        dict with keys: score (float in [0,1]), features (dict of 20 features).
-    """
     if _model is None:
         _load_model()
 

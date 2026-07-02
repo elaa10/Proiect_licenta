@@ -248,9 +248,6 @@ def load_clip_model():
 
 
 def trim_white_borders(im: Image.Image) -> Optional[Image.Image]:
-    """
-    Elimină marginile albe. Returnează None dacă imaginea este 100% albă.
-    """
     bg = Image.new(im.mode, im.size, (255, 255, 255))
     diff = ImageChops.difference(im, bg)
     diff = ImageChops.add(diff, diff, 2.0, -100)
@@ -271,7 +268,6 @@ def compute_multi_crop_embeddings(model, preprocess, image_path: str) -> list:
     embeddings = []
     for strategy in CROP_STRATEGIES:
         
-        # Selectăm zona în funcție de tipul strategiei
         if strategy.get("type") == "pixel":
             left = strategy.get("x", 0)
             top = strategy.get("y", 0)
@@ -288,11 +284,9 @@ def compute_multi_crop_embeddings(model, preprocess, image_path: str) -> list:
             
         crop = img.crop((left, top, right, bottom))
         
-        # Tăiem spațiul alb (sau ignorăm imaginea dacă e pur albă)
         crop = trim_white_borders(crop)
         
         if crop is None:
-            # Sărim peste crop dacă este complet gol! (Asta salvează performanță și previne fals-pozitivele)
             continue
             
         try:

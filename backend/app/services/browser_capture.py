@@ -6,11 +6,6 @@ from playwright_stealth import stealth_async
 
 SCREENSHOTS_DIR = Path("/app/screenshots")
 
-# ---------------------------------------------------------------------------
-# 1) CSS care ascunde bannerele celor mai răspândite CMP-uri.
-#    Injectat înainte de orice script al paginii prin add_init_script,
-#    deci e activ în momentul în care bannerul încearcă să se afișeze.
-# ---------------------------------------------------------------------------
 HIDE_COOKIES_CSS = """
 /* OneTrust */
 #onetrust-consent-sdk, #onetrust-banner-sdk, .onetrust-pc-dark-filter,
@@ -84,11 +79,7 @@ body[style*="overflow:hidden"] {
 }
 """
 
-# ---------------------------------------------------------------------------
-# 2) Domenii ale CMP-urilor. Blocăm cererile către ele ca bannerele să nu
-#    se mai poată încărca. Pentru screenshot e ideal; dacă ai nevoie ca
-#    site-ul să funcționeze complet după, poți comenta secțiunea de routing.
-# ---------------------------------------------------------------------------
+
 CMP_BLOCKED_DOMAINS = [
     "cookielaw.org",                       # OneTrust
     "onetrust.com",
@@ -119,15 +110,12 @@ async def _block_cmp_requests(route) -> None:
         await route.continue_()
 
 
-# ---------------------------------------------------------------------------
-# Funcția principală
-# ---------------------------------------------------------------------------
+
 async def capture_screenshot(url: str) -> str | None:
     SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
     filename = f"{uuid.uuid4()}.png"
     filepath = SCREENSHOTS_DIR / filename
 
-    # Domeniul root + hostul exact (le folosim ambele la cookies)
     try:
         parsed = urlparse(url)
         host = parsed.hostname or ""
@@ -169,11 +157,7 @@ async def capture_screenshot(url: str) -> str | None:
             },
         )
 
-        # ------------------------------------------------------------
-        # 3) Init script: injectează CSS-ul de ascundere + setează în
-        # localStorage/sessionStorage flag-urile pe care multe site-uri le
-        # verifică pentru a decide dacă afișează bannerul.
-        # ------------------------------------------------------------
+        
         await context.add_init_script(
             f"""
             (() => {{
@@ -214,9 +198,7 @@ async def capture_screenshot(url: str) -> str | None:
             """
         )
 
-        # ------------------------------------------------------------
-        # 4) Cookies de consimțământ — pe domeniul root și pe hostul exact.
-        # ------------------------------------------------------------
+        
         cookie_values = [
             ("OptanonAlertBoxClosed", "true"),
             ("OptanonConsent", "isGpcEnabled=0&interactionCount=1&consentId=accepted"),
@@ -242,10 +224,7 @@ async def capture_screenshot(url: str) -> str | None:
             except Exception:
                 pass
 
-        # ------------------------------------------------------------
-        # 5) Routing — blocăm domeniile CMP. Comentează blocul dacă vrei
-        # ca site-ul să rămână 100% funcțional (în detrimentul unor bannere).
-        # ------------------------------------------------------------
+        
         try:
             await context.route("**/*", _block_cmp_requests)
         except Exception:
@@ -253,9 +232,7 @@ async def capture_screenshot(url: str) -> str | None:
 
         page = await context.new_page()
 
-        # ------------------------------------------------------------
-        # 6) Stealth — păstrat ca să nu fim blocați pe site-urile agresive.
-        # ------------------------------------------------------------
+        
         try:
             await stealth_async(page)
         except Exception as e:
@@ -272,7 +249,6 @@ async def capture_screenshot(url: str) -> str | None:
 
             await page.wait_for_timeout(1500)
 
-            # 7) Fallback prin click — pentru bannerele care au scăpat de CSS
             await _accept_cookies(page)
 
             await page.wait_for_timeout(1000)
@@ -288,10 +264,7 @@ async def capture_screenshot(url: str) -> str | None:
             await browser.close()
 
 
-# ---------------------------------------------------------------------------
-# 8) Fallback prin click — păstrat din versiunea originală, cu timeouturi mai
-# generoase și un final pas JS care traversează inclusiv Shadow DOM.
-# ---------------------------------------------------------------------------
+
 COOKIE_SELECTORS = [
     # OneTrust
     "#onetrust-accept-btn-handler",
@@ -312,7 +285,7 @@ COOKIE_SELECTORS = [
     "button.cmplz-accept",
     # Iubenda
     ".iubenda-cs-accept-btn",
-    # Text românesc / english în butoane și div-uri "button"
+    
     "button:has-text('Permite toate modulele cookie')",
     "div[role='button']:has-text('Permite toate modulele cookie')",
     "button:has-text('Acceptă toate')", "button:has-text('Acceptă')",
@@ -351,11 +324,9 @@ async def _try_selectors_in_context(ctx) -> bool:
 
 
 async def _accept_cookies(page) -> None:
-    # Frame principal
     if await _try_selectors_in_context(page):
         return
 
-    # Iframe-uri (Sourcepoint și alte CMP-uri trăiesc adesea în iframe)
     for frame in page.frames:
         if frame == page.main_frame:
             continue
@@ -365,7 +336,6 @@ async def _accept_cookies(page) -> None:
         except Exception:
             continue
 
-    # Ultim fallback: JS care caută în DOM-ul light + Shadow DOM
     try:
         await page.evaluate(
             """

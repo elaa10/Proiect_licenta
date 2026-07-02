@@ -1,9 +1,4 @@
-"""
-PX+Filter visual module evaluation on Phishpedia benchmark.
 
-Output: backend/results/visual_evaluation_px_filtered.json
-Compare with: backend/results/visual_evaluation_px.json (PX, no filter)
-"""
 import json
 import sys
 from pathlib import Path

@@ -1,10 +1,4 @@
-"""
-Diagnostic script — PX/PX2 pixel-based multi-crop strategy.
-Mirrors diagnose_visual.py but uses visual_matcher_px instead of visual_matcher,
-so the production matcher stays untouched.
 
-Usage: python scripts/diagnose_visual_px.py <URL> [<URL2> ...]
-"""
 import asyncio
 import sys
 from pathlib import Path

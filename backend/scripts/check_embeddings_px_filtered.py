@@ -1,10 +1,7 @@
-"""
-Verificare coliziuni embeddings intre referinte in baza PX_FILTERED.
-"""
+
 import pickle
 import numpy as np
 
-# Citim baza de date filtrata
 with open("/app/data/brand_embeddings_px_filtered.pkl", "rb") as f:
     emb = pickle.load(f)
 
@@ -24,7 +21,6 @@ for name in BRANDS_TO_CHECK:
 print()
 keys = list(vecs.keys())
 
-# Iteram prin cele 4 posibile crop-uri (0 = top_150, 1 = top_300, etc.)
 for crop_idx in range(4):
     print(f"--- crop {crop_idx} ---")
     for i in range(len(keys)):
@@ -32,7 +28,6 @@ for crop_idx in range(4):
             brand_a = keys[i]
             brand_b = keys[j]
             
-            # Verificam daca ambele branduri au supravietuit filtrului pentru acest index
             if crop_idx < len(vecs[brand_a]) and crop_idx < len(vecs[brand_b]):
                 a = vecs[brand_a][crop_idx]
                 b = vecs[brand_b][crop_idx]

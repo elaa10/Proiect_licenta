@@ -1,9 +1,3 @@
-"""
-Smoke tests for the Random Forest ML classifier.
-
-Run from inside the backend container:
-    docker exec -it proiect_licenta-backend-1 python -m tests.test_ml_smoke
-"""
 
 import sys
 import os
@@ -11,11 +5,6 @@ import os
 sys.path.insert(0, "/app")
 
 from app.services.ml_classifier import predict_ml_score, is_model_available
-
-# ── SCORING TESTS ─────────────────────────────────────────────────────────────
-# "safe" → ML score < 0.35
-# "mid"  → 0.35 ≤ score < 0.70
-# "high" → score ≥ 0.60
 
 SCORING_TESTS = [
     # Legitimate URLs — must score low
@@ -41,8 +30,6 @@ SCORING_TESTS = [
     ("https://bit.ly/3xampLe",                "high", "URL shortener"),
 ]
 
-# ── PROPERTY TESTS ────────────────────────────────────────────────────────────
-
 PROPERTY_TESTS = [
     # Score must be a float in [0, 1]
     "https://www.google.com",
@@ -54,8 +41,6 @@ PROPERTY_TESTS = [
     "http://" + "a" * 2000,
 ]
 
-# ── RANKING TESTS ─────────────────────────────────────────────────────────────
-# For each pair, the first URL must score LOWER than the second
 
 RANKING_TESTS = [
     (
@@ -81,7 +66,6 @@ RANKING_TESTS = [
 ]
 
 
-# ── TEST RUNNER ───────────────────────────────────────────────────────────────
 
 def run_prerequisite_check():
     print("\n" + "=" * 80)

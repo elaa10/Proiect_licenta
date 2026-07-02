@@ -1,13 +1,4 @@
-"""
-DINO-PX knowledge-base builder — pixel-based multi-crop (PX strategy) with DINOv2.
 
-Reuses BRANDS and capture() from init_brand_db_dino.py (same screenshot set as
-visual_matcher_px.py). Crop strategy: top_150, top_300, top_500, mid_300
-(absolute pixel coordinates), no uniform-color filter — DINOv2 counterpart
-of visual_matcher_px.py, for the final CLIP-vs-DINO comparison (Cap. 4.4).
-
-Output: /app/data/brand_embeddings_dino_px.pkl
-"""
 import asyncio
 import pickle
 import sys

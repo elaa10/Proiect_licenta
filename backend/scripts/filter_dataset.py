@@ -67,7 +67,6 @@ BRAND_MAPPING = {
 def parse_info(info_path: Path) -> dict:
     try:
         text = info_path.read_text(encoding="utf-8").strip()
-        # info.txt e un dict Python, nu JSON — folosim ast.literal_eval
         import ast
         return ast.literal_eval(text)
     except Exception:
@@ -97,7 +96,6 @@ def main():
         info = parse_info(info_path)
         brand_raw = info.get("brand", "")
 
-        # Cauta in mapping
         brand_key = None
         for phish_name, our_key in BRAND_MAPPING.items():
             if phish_name.lower() in brand_raw.lower():
@@ -108,7 +106,6 @@ def main():
             skipped += 1
             continue
 
-        # Copiaza shot.png si info.txt in folderul filtrat
         dest = FILTERED_DIR / brand_key / folder.name
         dest.mkdir(parents=True, exist_ok=True)
         shutil.copy2(shot_path, dest / "shot.png")

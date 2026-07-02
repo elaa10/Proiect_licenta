@@ -44,9 +44,7 @@ CROP_STRATEGIES = [
     {"name": "mid_upper",  "x1": 0.00, "y1": 0.10, "x2": 1.00, "y2": 0.45},
 ]
 
-# Login references added for brands where OAuth buttons are in the lower half.
-# Brands that still use home-only (OAuth button near top or layout uncertain):
-#   - github, airbnb, youtube (Google-only login), twitter
+
 BRANDS = [
     # ── Global — Tech ────────────────────────────────────────────────────────
     {"name": "google", "display": "Google", "category": "tech", "references": [

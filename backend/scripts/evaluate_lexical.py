@@ -1,21 +1,3 @@
-"""
-Evaluation of the lexical URL detector on a labeled dataset.
-Produces the metrics reported in Chapter 4.4 of the thesis.
-
-Usage (inside the backend container):
-    MSYS_NO_PATHCONV=1 docker exec -it proiect_licenta-backend-1 \
-        python scripts/evaluate_lexical.py \
-        --csv /app/data/phishing_site_urls.csv \
-        --sample 100000
-
-Expected CSV format (Kaggle "phishing-site-urls" by Tarun Kumar):
-    URL,Label
-    https://example.com,good
-    http://evil-phish.top/login,bad
-
-Output:
-    /app/results/lexical_evaluation.json
-"""
 
 import argparse
 import json
@@ -102,7 +84,6 @@ def metrics_at_threshold(y_true, scores, threshold):
 def find_best_f1_threshold(y_true, scores):
     precisions, recalls, thresholds = precision_recall_curve(y_true, scores)
     f1s = 2 * precisions * recalls / np.maximum(precisions + recalls, 1e-9)
-    # Exclude degenerate threshold (τ near 0 that flags everything)
     mask = thresholds >= 0.05
     if mask.any():
         best_idx = np.argmax(f1s[:-1][mask])

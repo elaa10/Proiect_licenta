@@ -1,11 +1,4 @@
-"""
-Compute lexical and ML scores for candidate URLs without running the
-full pipeline (no screenshot capture). Useful for finding URLs that
-fall into each verdict band for qualitative analysis.
 
-Usage:
-    docker exec -it proiect_licenta-backend-1 python scripts/find_verdict_examples.py
-"""
 import sys
 
 sys.path.insert(0, "/app")

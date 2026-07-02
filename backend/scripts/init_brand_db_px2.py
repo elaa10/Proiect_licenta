@@ -1,17 +1,4 @@
-"""
-Build brand_embeddings_px2.pkl using original pixel-based multi-crop strategy.
 
-Goes in: backend/scripts/init_brand_db_px2.py
-
-Reuses existing screenshots from backend/screenshots/brands/ — Playwright
-is not re-invoked if the PNG already exists.
-
-Crop strategy: top_150, top_300, top_500, mid_300 (absolute pixel coordinates,
-full image width). No uniform-color filter — pure pixel strategy re-run on
-current clean reference screenshots.
-
-Output: /app/data/brand_embeddings_px2.pkl
-"""
 import asyncio
 import pickle
 from pathlib import Path

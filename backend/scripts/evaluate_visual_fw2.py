@@ -1,10 +1,4 @@
-"""
-FW2 CLIP visual module evaluation on Phishpedia benchmark.
 
-Goes in: backend/scripts/evaluate_visual_fw2.py
-
-Output:  backend/results/visual_evaluation_fw2.json
-"""
 import json
 import sys
 from pathlib import Path

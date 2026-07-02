@@ -1,4 +1,4 @@
-# backend/app/services/visual_matcher_v2.py
+
 import pickle
 import threading
 from pathlib import Path
@@ -51,9 +51,6 @@ def is_visual_available() -> bool:
     return EMBEDDINGS_PATH_V2.exists()
 
 def trim_white_borders(im: Image.Image) -> Optional[Image.Image]:
-    """
-    Elimină marginile albe. Dacă imaginea e complet albă, returnează None.
-    """
     bg = Image.new(im.mode, im.size, (255, 255, 255))
     diff = ImageChops.difference(im, bg)
     diff = ImageChops.add(diff, diff, 2.0, -100)
@@ -85,7 +82,6 @@ def _apply_strategy(img: Image.Image, strategy: dict) -> Optional[Image.Image]:
         
     crop = img.crop((left, top, right, bottom))
     
-    # Returnează None dacă crop-ul este exclusiv alb
     return trim_white_borders(crop)
 
 def _embed_crop(crop: Image.Image) -> Optional[np.ndarray]:
@@ -108,7 +104,6 @@ def _compute_query_embeddings(image_path: str) -> list[np.ndarray]:
     embeddings = []
     for strategy in CROP_STRATEGIES:
         crop = _apply_strategy(img, strategy)
-        # Dacă crop-ul a fost complet alb, _apply_strategy returnează None, deci dăm skip!
         if crop is None:
             continue
             

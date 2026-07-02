@@ -1,15 +1,4 @@
-"""
-CLIP-based visual brand matcher — pixel-based multi-crop with uniform-color
-filter (PX+Filter strategy).
 
-Final crop strategy selected after benchmarking against the Phishpedia
-dataset (Lin et al., USENIX Security 2021) — see thesis Section 3.4.3 /
-4.4. Four full-width pixel crops on a 1280x800 capture (top_150, top_300,
-top_500, mid_300), with crops whose grayscale std is below
-UNIFORM_STD_THRESHOLD skipped at both indexing and inference time.
-F1=0.4775 vs. F1=0.4263 for the same crops without the uniform filter (PX),
-and vs. F1=0.0768 for the previously used proportional multi-crop strategy.
-"""
 import pickle
 import threading
 from pathlib import Path
@@ -22,7 +11,6 @@ from PIL import Image
 
 EMBEDDINGS_PATH = Path("/app/data/brand_embeddings_px_filtered.pkl")
 
-# Absolute pixel crops, full image width, for 1280x800 Playwright captures.
 CROP_STRATEGIES = [
     {"name": "top_150", "top": 0,   "bottom": 150},
     {"name": "top_300", "top": 0,   "bottom": 300},
@@ -30,13 +18,8 @@ CROP_STRATEGIES = [
     {"name": "mid_300", "top": 100, "bottom": 400},
 ]
 
-# Crops with grayscale-pixel std below this threshold are treated as uniform
-# background and skipped, both when building reference embeddings and when
-# computing query embeddings.
 UNIFORM_STD_THRESHOLD = 12.0
 
-# Ambiguity guard: a match is accepted only when the top similarity exceeds
-# the threshold AND beats the runner-up brand by at least this margin.
 MIN_CONFIDENCE_MARGIN = 0.02
 
 _model = None

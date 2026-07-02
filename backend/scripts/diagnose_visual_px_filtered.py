@@ -1,10 +1,4 @@
-"""
-Diagnostic script — PX+Filter (pixel-based multi-crop + uniform-color filter).
-CLI-only, no frontend needed. Captures a screenshot, computes query
-embeddings, and ranks all brands by similarity.
 
-Usage: python scripts/diagnose_visual_px_filtered.py <URL> [<URL2> ...]
-"""
 import asyncio
 import sys
 from pathlib import Path

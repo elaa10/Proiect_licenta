@@ -1,19 +1,4 @@
-"""
-PX CLIP visual matcher — original pixel-based multi-crop strategy.
 
-Goes in: backend/app/services/visual_matcher_px.py
-
-This is a clean re-run of the original pixel-based strategy (top_150, top_300,
-top_500, mid_300) with the current clean reference screenshots, to obtain
-comparable benchmark numbers. No uniform-color filter is applied so the
-comparison with other strategies is isolated to the crop geometry alone.
-
-Loads from /app/data/brand_embeddings_px.pkl — separate from all other pkl files.
-
-Public API:
-    is_px_available() -> bool
-    match_brand_px(screenshot_path, threshold=0.85) -> dict
-"""
 import pickle
 import threading
 from pathlib import Path
@@ -26,9 +11,7 @@ from PIL import Image
 
 EMBEDDINGS_PATH = Path("/app/data/brand_embeddings_px2.pkl")
 
-# Original pixel-based crop strategies.
-# Coordinates are absolute pixel values (top/bottom from image top edge),
-# full image width. Designed for 1280x800 Playwright captures.
+
 CROP_STRATEGIES = [
     {"name": "top_150", "top": 0,   "bottom": 150},
     {"name": "top_300", "top": 0,   "bottom": 300},

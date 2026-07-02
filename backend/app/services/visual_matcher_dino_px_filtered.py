@@ -1,16 +1,4 @@
-"""
-DINO-PX+Filter visual matcher — pixel-based multi-crop (PX strategy) with
-uniform-color filter (std < UNIFORM_STD_THRESHOLD), using DINOv2.
 
-DINOv2 counterpart of visual_matcher.py (CLIP PX+Filter), for the final
-CLIP-vs-DINOv2 comparison on the same crop geometry and filter.
-
-Loads from /app/data/brand_embeddings_dino_px_filtered.pkl.
-
-Public API:
-    is_dino_px_filtered_available() -> bool
-    match_brand_dino_px_filtered(screenshot_path, threshold=0.85) -> dict
-"""
 import pickle
 import threading
 from pathlib import Path

@@ -1,18 +1,4 @@
-"""
-PX CLIP visual module evaluation on Phishpedia benchmark.
 
-Goes in: backend/scripts/evaluate_visual_px2.py
-
-Re-runs the original pixel-based multi-crop strategy (top_150, top_300,
-top_500, mid_300) on current clean reference screenshots, to obtain
-comparable numbers for the thesis ablation table.
-
-Output:  backend/results/visual_evaluation_px2.json
-Compare: backend/results/visual_evaluation.json           (single crop 300px, F1=0.095)
-         backend/results/visual_evaluation_multicrop.json (proportional crops, F1=0.077)
-         backend/results/visual_evaluation_aux.json       (9 crops + filter,   F1=0.258)
-         backend/results/visual_evaluation_fw.json        (full-width prop + filter)
-"""
 import json
 import sys
 from pathlib import Path

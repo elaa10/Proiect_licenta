@@ -105,7 +105,6 @@ async def analyze_full(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Full pipeline: lexical + ML + visual. Stores result in DB."""
     _validate_url(payload.url)
 
     req = AnalysisRequest(user_id=current_user.id, url=payload.url, status="running")
@@ -238,7 +237,7 @@ def get_visual_comparisons(
         .all()
     )
 
-    # Keep the most recent result per (url, model)
+    
     latest: dict[tuple[str, str], AnalysisResult] = {}
     for url, result in rows:
         key = (url, result.visual_model)

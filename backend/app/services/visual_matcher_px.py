@@ -26,9 +26,7 @@ from PIL import Image
 
 EMBEDDINGS_PATH = Path("/app/data/brand_embeddings_px.pkl")
 
-# Original pixel-based crop strategies.
-# Coordinates are absolute pixel values (top/bottom from image top edge),
-# full image width. Designed for 1280x800 Playwright captures.
+
 CROP_STRATEGIES = [
     {"name": "top_150", "top": 0,   "bottom": 150},
     {"name": "top_300", "top": 0,   "bottom": 300},

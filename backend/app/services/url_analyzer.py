@@ -40,12 +40,10 @@ _CONFUSABLE_TRANSLATION = str.maketrans({
 
 
 def _normalize_confusables(s: str) -> str:
-    """Map visually confusable ASCII characters to their canonical form."""
     return s.replace("rn", "m").replace("vv", "w").translate(_CONFUSABLE_TRANSLATION)
 
 
 def extract_features(url: str) -> dict:
-    """Extrage 20 caracteristici lexicale dintr-un URL. Nu face cereri de rețea."""
     try:
         parsed = urlparse(url if "://" in url else "http://" + url)
     except Exception:
@@ -61,21 +59,14 @@ def extract_features(url: str) -> dict:
     tld = "." + parts[-1] if parts else ""
     sld = parts[-2] if len(parts) >= 2 else domain
 
-    # Detectie typosquatting:
-    # - Comparam SLD-ul si primul token pre-cratima (ex: "paypa1" in "paypa1-secure.com")
-    #   cu lista de branduri cunoscute.
-    # - sld_is_exact_brand = 1 daca SLD-ul este EXACT un brand (ex: "google" in google.com)
-    # - min_brand_levenshtein = distanta minima la *celelalte* branduri
-    #   (excludem brandul cu match exact, ca sa nu se intoarca 0).
+    
     pre_hyphen = sld.split("-")[0] if "-" in sld else sld
     sld_is_exact_brand = int(sld in _BRANDS_SET)
     sld_norm = _normalize_confusables(sld)
     pre_hyphen_norm = _normalize_confusables(pre_hyphen)
     has_confusable_chars = int(sld_norm != sld or pre_hyphen_norm != pre_hyphen)
 
-    # Construim lista de branduri folosita pentru comparatie:
-    # - daca SLD-ul este match exact, excludem chiar acel brand
-    # - altfel, comparam cu toata lista
+    
     if sld_is_exact_brand:
         brands_for_compare = [b for b in TOP_BRANDS if b != sld]
     else:
@@ -116,7 +107,6 @@ def extract_features(url: str) -> dict:
 
 
 def compute_lexical_score(features: dict) -> float:
-    """Scor heuristic in [0, 1]. Folosit de endpoint-ul /analyze/lexical."""
     score = 0.0
 
     if features["url_length"] > 75:
@@ -163,16 +153,12 @@ def compute_lexical_score(features: dict) -> float:
     if features["double_slash_in_path"]:
         score += 0.05
 
-    # Typosquatting: distanta mica (1-3) la un brand cunoscut.
-    # Aplicabil DOAR cand sld NU este match exact, ca sa nu penalizam google.com.
     lev = features["min_brand_levenshtein"]
     if features["has_confusable_chars"] and not features["sld_is_exact_brand"] and lev <= 3:
         score += 0.15
     if not features["sld_is_exact_brand"] and 1 <= lev <= 3:
         score += 0.15
 
-    # Brand exact pe TLD suspect (ex: paypal.xyz) = phishing puternic.
-    # Brand exact pe TLD normal (ex: paypal.com) = legitim, nu contribuie la scor.
     if features["sld_is_exact_brand"] and features["has_suspicious_tld"]:
         score += 0.20
 

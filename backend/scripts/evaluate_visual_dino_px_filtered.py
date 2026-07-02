@@ -1,14 +1,4 @@
-"""
-DINO-PX+Filter visual module evaluation on Phishpedia benchmark.
 
-DINOv2 counterpart of evaluate_visual_px_filtered.py (CLIP PX+Filter),
-same crop geometry and uniform filter, for the final CLIP-vs-DINOv2
-comparison in Section 4.4.
-
-Output: backend/results/visual_evaluation_dino_px_filtered.json
-Compare with: backend/results/visual_evaluation_px_filtered.json (CLIP)
-              backend/results/visual_evaluation_dino_px.json (DINO, no filter)
-"""
 import json
 import sys
 from pathlib import Path

@@ -1,20 +1,4 @@
-"""
-FW2 CLIP visual matcher — full-width crops capped at 50% page height + uniform filter.
 
-Goes in: backend/app/services/visual_matcher_fw2.py
-
-Key differences from visual_matcher_fw.py:
-  - All crops stop at or before y2=0.50 (page midpoint), so OAuth/SSO buttons
-    that appear in the lower half of login pages are never included in embeddings.
-  - This makes it safe to include login page references for brands that previously
-    had to be excluded (LinkedIn, Adobe, Dropbox, Glovo, Spotify).
-  - Uniform-color filter (grayscale std < 12) still active.
-  - Loads from brand_embeddings_fw2.pkl — isolated from all other pkl files.
-
-Public API:
-    is_fw2_available() -> bool
-    match_brand_fw2(screenshot_path, threshold=0.85) -> dict
-"""
 import pickle
 import threading
 from pathlib import Path
@@ -27,9 +11,6 @@ from PIL import Image
 
 EMBEDDINGS_PATH = Path("/app/data/brand_embeddings_fw2.pkl")
 
-# Full-width crops, all capped at y2 <= 0.50.
-# Logos are consistently found in the top 15-35% of the page; the 50% cap
-# ensures OAuth/SSO buttons in the lower half of login pages are excluded.
 CROP_STRATEGIES = [
     {"name": "top_narrow", "x1": 0.00, "y1": 0.00, "x2": 1.00, "y2": 0.20},
     {"name": "top_medium", "x1": 0.00, "y1": 0.00, "x2": 1.00, "y2": 0.35},

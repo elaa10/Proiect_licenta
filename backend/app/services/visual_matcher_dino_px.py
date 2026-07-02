@@ -1,15 +1,4 @@
-"""
-DINO-PX visual matcher — pixel-based multi-crop (PX strategy) with DINOv2.
 
-Mirrors visual_matcher.py (CLIP-PX) but uses DINOv2 (facebook/dinov2-base)
-embeddings, for the final CLIP-vs-DINO comparison on the PX crop strategy.
-
-Loads from /app/data/brand_embeddings_dino_px.pkl.
-
-Public API:
-    is_dino_px_available() -> bool
-    match_brand_dino_px(screenshot_path, threshold=0.85) -> dict
-"""
 import pickle
 import threading
 from pathlib import Path

@@ -1,9 +1,4 @@
-"""
-Visual module evaluation V2 (Hybrid Strategy & Smart Cropping).
-Uses Multithreading to drastically speed up processing.
 
-Output: backend/results/visual_evaluation_v2.json
-"""
 import json
 import sys
 import concurrent.futures
@@ -14,7 +9,6 @@ import numpy as np
 
 sys.path.insert(0, "/app")
 
-# IMPORTĂM VERSIUNEA V2 a matcher-ului
 from app.services.visual_matcher_v2 import match_brand, _load
 
 FILTERED_DIR = Path("/app/evaluation/phishpedia_filtered")
@@ -27,11 +21,9 @@ REPRESENTATIVE_BRANDS = {
     "dropbox", "instagram", "ebay", "google", "steam", "whatsapp",
 }
 
-# Numărul de thread-uri concurente (mărește la 8 sau 16 dacă ai procesor puternic)
 MAX_WORKERS = 8
 
 def _process_single_sample(brand_key, sample_dir):
-    """Funcție helper pentru a procesa o singură imagine într-un thread separat."""
     shot = sample_dir / "shot.png"
     if not shot.exists():
         return brand_key, sample_dir.name, None, "File not found"
@@ -57,7 +49,6 @@ def evaluate():
     brand_dirs = sorted(FILTERED_DIR.iterdir())
     total_brands = len(brand_dirs)
 
-    # Executăm brand cu brand pentru a menține un output ordonat în consolă
     for b_idx, brand_dir in enumerate(brand_dirs):
         if not brand_dir.is_dir():
             continue
@@ -67,16 +58,12 @@ def evaluate():
         n = len(sample_dirs)
         print(f"[{b_idx+1:02d}/{total_brands}] {brand_key:25s} ({n} samples) - Processing...")
 
-        # PARALELIZARE AICI
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            # Trimitem toate sarcinile (imaginile) către executor
             futures = [executor.submit(_process_single_sample, brand_key, s_dir) for s_dir in sample_dirs]
             
-            # Colectăm rezultatele pe măsură ce thread-urile termină
             for future in concurrent.futures.as_completed(futures):
                 b_key, s_name, result, err = future.result()
                 
-                # Ignorăm folderele fără shot.png
                 if err == "File not found":
                     continue
                     
@@ -99,14 +86,12 @@ def evaluate():
                 else:
                     per_brand[brand_key]["fn"] += 1
 
-        # Afișăm statistici intermediare pentru brandul curent
         tp = per_brand[brand_key]["tp"]
         fn = per_brand[brand_key]["fn"]
         fp = per_brand[brand_key]["fp"]
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
         print(f"         TP={tp} FN={fn} FP={fp} recall={recall:.2%}")
 
-    # --- Calcul Metrici Agregate ---
     total_tp = sum(v["tp"] for v in per_brand.values())
     total_fp = sum(v["fp"] for v in per_brand.values())
     total_fn = sum(v["fn"] for v in per_brand.values())
@@ -117,7 +102,6 @@ def evaluate():
     f1        = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
     detection_rate = total_tp / total_samples if total_samples > 0 else 0
 
-    # Metrici doar pe branduri reprezentative
     rep_tp = sum(v["tp"] for k, v in per_brand.items() if k in REPRESENTATIVE_BRANDS)
     rep_fp = sum(v["fp"] for k, v in per_brand.items() if k in REPRESENTATIVE_BRANDS)
     rep_fn = sum(v["fn"] for k, v in per_brand.items() if k in REPRESENTATIVE_BRANDS)
@@ -126,7 +110,6 @@ def evaluate():
     rep_recall    = rep_tp / (rep_tp + rep_fn) if (rep_tp + rep_fn) > 0 else 0
     rep_f1        = 2 * rep_precision * rep_recall / (rep_precision + rep_recall) if (rep_precision + rep_recall) > 0 else 0
 
-    # Per-brand metrics
     per_brand_metrics = {}
     for brand, v in sorted(per_brand.items(), key=lambda x: -x[1]["samples"]):
         tp, fp, fn = v["tp"], v["fp"], v["fn"]
@@ -174,7 +157,6 @@ def evaluate():
         "errors": errors[:20],
     }
 
-    # SALVĂM ÎNTR-UN FIȘIER NOU
     out_path = RESULTS_DIR / "visual_evaluation_v2.json"
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)

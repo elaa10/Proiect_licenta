@@ -1,9 +1,4 @@
-"""
-Quick check: are reference embeddings for specific brands identical
-(suggesting duplicated screenshots / stale pkl entries)?
 
-Usage: python scripts/check_embeddings.py
-"""
 import pickle
 import numpy as np
 

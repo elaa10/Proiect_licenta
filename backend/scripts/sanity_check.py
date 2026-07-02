@@ -1,9 +1,4 @@
-"""
-Sanity check pentru modelul Random Forest antrenat.
 
-Ruleaza modelul pe ~25 URL-uri cunoscute (13 legitime + 12 phishing) si
-raporteaza scorurile + verdictul. 
-"""
 
 import argparse
 import json
@@ -28,8 +23,6 @@ FEATURE_ORDER = [
     "has_confusable_chars",
 ]
 
-# Lista de URL-uri pentru testul de sanitate.
-# Fiecare grup acopera un scenariu distinct.
 TEST_URLS = [
     # ===== LEGITIME — brand-uri internationale =====
     ("https://google.com",                              "LEGIT", "Brand fara www"),
@@ -94,7 +87,6 @@ def print_report(results, correct, total, threshold):
     print(f"SANITY CHECK — Random Forest model  (threshold τ={threshold})")
     print(f"{'=' * 100}\n")
 
-    # Legitime
     legit_results = [r for r in results if r["expected"] == "LEGIT"]
     legit_correct = sum(1 for r in legit_results if r["correct"])
     print(f"--- URL-uri LEGITIME ({legit_correct}/{len(legit_results)} corecte) ---")
@@ -104,7 +96,6 @@ def print_report(results, correct, total, threshold):
         mark = "✓" if r["correct"] else "✗"
         print(f"{r['url']:<55} {r['score']:>8.4f}  {r['verdict']:<7}  {mark} {r['scenario']}")
 
-    # Phishing
     phish_results = [r for r in results if r["expected"] == "PHISH"]
     phish_correct = sum(1 for r in phish_results if r["correct"])
     print(f"\n--- URL-uri PHISHING ({phish_correct}/{len(phish_results)} corecte) ---")
@@ -114,7 +105,6 @@ def print_report(results, correct, total, threshold):
         mark = "✓" if r["correct"] else "✗"
         print(f"{r['url']:<55} {r['score']:>8.4f}  {r['verdict']:<7}  {mark} {r['scenario']}")
 
-    # Summary
     print(f"\n{'=' * 100}")
     print(f"TOTAL: {correct}/{total} corecte ({100*correct/total:.1f}%)")
     print(f"  Legitime: {legit_correct}/{len(legit_results)} ({100*legit_correct/len(legit_results):.1f}%) — precision pentru clasa LEGIT")

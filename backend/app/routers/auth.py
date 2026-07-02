@@ -45,7 +45,6 @@ def delete_account(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Permanently deletes the current user's account and all associated analysis data."""
     requests = db.query(AnalysisRequest).filter(AnalysisRequest.user_id == current_user.id).all()
 
     for req in requests:
